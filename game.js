@@ -141,8 +141,8 @@ class Character {
             number: '',
             text: '',
             grid: type === 'attack' ? {
-                mode: '8x5',  // or '7x7'
-                cells: Array(40).fill(false)  // Will be resized when switching modes
+                mode: 'hex5',  // Changed from '8x5'
+                cells: Array(45).fill(false)  // 5x9 hex grid = 45 cells
             } : null
         });
         this.updateAbilitiesDisplay();
@@ -172,31 +172,42 @@ class Character {
             
             let middleContent = '';
             if (ability.type === 'attack') {
-                // Handle old save files that don't have the grid mode structure
+                // Handle old save files
                 if (!ability.grid || !ability.grid.mode) {
                     ability.grid = {
-                        mode: '8x5',
-                        cells: Array.isArray(ability.grid) ? ability.grid : Array(40).fill(false)
+                        mode: 'hex5',
+                        cells: Array(45).fill(false)
                     };
                 }
 
-                const is7x7 = ability.grid.mode === '7x7';
-                const gridSize = is7x7 ? 49 : 40;
-                const centerIndex = is7x7 ? 24 : 17;
-                
-                // Resize grid array if needed
-                if (ability.grid.cells.length !== gridSize) {
-                    ability.grid.cells = Array(gridSize).fill(false);
+                // Convert old grid formats to hex
+                if (ability.grid.mode === '8x5' || ability.grid.mode === '7x7') {
+                    ability.grid.mode = 'hex5';
+                    ability.grid.cells = Array(45).fill(false);
                 }
 
-                middleContent = `<div class="attack-grid ${is7x7 ? 'grid-7x7' : 'grid-8x5'}">
-                    ${Array(gridSize).fill('').map((_, i) => {
-                        if (i === centerIndex) {
-                            return `<div class="grid-cell arrow" data-index="${i}">➡️</div>`;
-                        }
-                        return `<div class="grid-cell" data-index="${i}">${ability.grid.cells[i] ? '💥' : ''}</div>`;
-                    }).join('')}
-                </div>`;
+                const centerIndex = 22; // Center cell in 5x9 grid
+                
+                middleContent = `<div class="hex-grid">`;
+                
+                // Create 5 rows of hexes
+                for (let row = 0; row < 5; row++) {
+                    middleContent += `<div class="grid-row">`;
+                    // Each row has 9 cells
+                    const cellsInRow = 9;
+                    for (let col = 0; col < cellsInRow; col++) {
+                        const index = row * cellsInRow + col;
+                        const isCenter = index === centerIndex;
+                        const cellContent = isCenter ? '➡️' : (ability.grid.cells[index] ? '💥' : '');
+                        middleContent += `
+                            <div class="grid-cell${isCenter ? ' arrow' : ''}" data-index="${index}">
+                                <span>${cellContent}</span>
+                            </div>`;
+                    }
+                    middleContent += `</div>`;
+                }
+                
+                middleContent += `</div>`;
             }
 
             abilityDiv.innerHTML = `
@@ -231,7 +242,8 @@ class Character {
                     cell.addEventListener('click', () => {
                         const gridIndex = parseInt(cell.dataset.index);
                         ability.grid.cells[gridIndex] = !ability.grid.cells[gridIndex];
-                        cell.textContent = ability.grid.cells[gridIndex] ? '💥' : '';
+                        const span = cell.querySelector('span');
+                        span.textContent = ability.grid.cells[gridIndex] ? '💥' : '';
                     });
                 });
             }
