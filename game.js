@@ -111,6 +111,7 @@ class Character {
     // Add method to update display with current values
     updateDisplay() {
         document.getElementById('characterName').value = this.name;
+        adjustNameSize();
         document.getElementById('monsterType').value = this.type;
         document.getElementById('monsterHP').value = this.hp;
         document.getElementById('monsterArmor').value = this.armor;
@@ -273,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     nameInput.addEventListener('input', (e) => {
         character.updateName(e.target.value);
+        adjustNameSize();
     });
 
     // Add image handling
@@ -411,6 +413,56 @@ document.addEventListener('DOMContentLoaded', () => {
             character.updateAbilitiesDisplay(); // Only sort and update on blur of number inputs
         }
     }, true);  // Use capture phase to ensure we catch the blur event
+
+    // Function to check and adjust text size
+    function adjustNameSize() {
+        // Create a temporary span to measure text width
+        const span = document.createElement('span');
+        span.style.font = '1.2rem Audiowide'; // Use original font size
+        span.style.visibility = 'hidden';
+        span.style.position = 'absolute';
+        span.textContent = nameInput.value;
+        document.body.appendChild(span);
+        
+        // Get the width of the text
+        const textWidth = span.offsetWidth;
+        document.body.removeChild(span);
+        
+        // Get the width of the input minus padding
+        const inputWidth = nameInput.offsetWidth - 16;
+        
+        // Reset classes
+        nameInput.classList.remove('small-text', 'smaller-text', 'smallest-text');
+        
+        // Calculate ratio of text width to input width
+        const ratio = textWidth / inputWidth;
+        
+        // Lower all thresholds to start shrinking sooner
+        if (ratio > 1.4) {
+            nameInput.classList.add('smallest-text');
+        } else if (ratio > 1.0) {
+            nameInput.classList.add('smaller-text');
+        } else if (ratio > 0.78) {
+            nameInput.classList.add('small-text');
+        }
+    }
+
+    // Call adjustNameSize on load and when loading character data
+    character.updateDisplay = function() {
+        document.getElementById('characterName').value = this.name;
+        adjustNameSize();
+        document.getElementById('monsterType').value = this.type;
+        document.getElementById('monsterHP').value = this.hp;
+        document.getElementById('monsterArmor').value = this.armor;
+        const img = document.getElementById('characterImage');
+        if (this.imageData) {
+            img.src = this.imageData;
+        }
+        this.updateAbilitiesDisplay();
+    };
+
+    // Also call it once DOM is loaded
+    adjustNameSize();
 }); 
 
 // Version 4.1 - pSBC - Shade Blend Convert

@@ -30,10 +30,25 @@
     border-radius: var(--border-radius);
     z-index: 1;
     font-family: 'Audiowide', cursive;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #characterName::placeholder {
     opacity: 0.7;
+}
+
+/* Add new class for when text needs to be smaller */
+#characterName.small-text {
+    font-size: 1rem;
+}
+
+#characterName.smaller-text {
+    font-size: 0.8rem;
+}
+
+#characterName.smallest-text {
+    font-size: 0.6rem;
 }
 
 .abilities-container {
