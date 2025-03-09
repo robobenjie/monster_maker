@@ -22,7 +22,7 @@
             display: inline-block;
             font-size: 0;
             padding: 20px;
-            background: #e5e5e5;
+            background: #F0e5cc;
             border-radius: 8px;
         }
 
@@ -40,7 +40,7 @@
             position: relative;
             width: 52px;
             height: 60px;
-            background-color: transparent;
+            background-color: #e6d7b7;
             margin: 0px 0;
             display: inline-block;
             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
@@ -48,7 +48,6 @@
             vertical-align: top;
             border: 0px solid rgba(0, 0, 0, 0.1);
         }
-
 
         .color-picker-label {
             display: flex;
@@ -69,6 +68,11 @@
         button:hover {
             background-color: #45a049;
         }
+
+        .hex.invisible {
+            visibility: hidden;
+            background-color: transparent;
+        }
     </style>
 </head>
 <body>
@@ -76,11 +80,15 @@
         <div class="controls">
             <div class="color-picker-label">
                 Background:
-                <input type="color" id="bgColorPicker" value="#f5f5f5">
+                <input type="color" id="bgColorPicker" value="#F0e5cc">
             </div>
             <div class="color-picker-label">
                 Paint Color:
-                <input type="color" id="paintColorPicker" value="#4CAF50">
+                <input type="color" id="paintColorPicker" value="#e6d7b7">
+            </div>
+            <div class="color-picker-label">
+                Size:
+                <input type="number" id="sizeInput" value="4" min="1" max="10" style="width: 60px">
             </div>
             <button id="saveButton">Save as Image</button>
         </div>
@@ -91,6 +99,7 @@
         const bgColorPicker = document.getElementById('bgColorPicker');
         const paintColorPicker = document.getElementById('paintColorPicker');
         const saveButton = document.getElementById('saveButton');
+        const sizeInput = document.getElementById('sizeInput');
 
         // Shade Blend Convert helper function
         const pSBC=(p,c0,c1)=>{
@@ -122,26 +131,81 @@
             return"#"+(0x100000000+m(P*f.r+p*t.r)*0x1000000+m(P*f.g+p*t.g)*0x10000+m(P*f.b+p*t.b)*0x100).toString(16).slice(1,f.a||t.a?-2:undefined);
         }
 
-        // Create 10x7 grid
-        for (let row = 0; row < 7; row++) {
-            const gridRow = document.createElement('div');
-            gridRow.className = 'grid-row';
+        function createHexGrid(size) {
+            hexGrid.innerHTML = '';
             
-            for (let col = 0; col < 10; col++) {
-                const hex = document.createElement('div');
-                hex.className = 'hex';
-                gridRow.appendChild(hex);
+            // Calculate total rows (2 * size - 1)
+            const totalRows = 2 * size - 1;
+            const maxHexes = 2 * size - 1; // Maximum hexes in middle row
+            
+            for (let row = 0; row < totalRows; row++) {
+                const gridRow = document.createElement('div');
+                gridRow.className = 'grid-row';
+                
+                // Calculate hexes in this row
+                let hexCount;
+                if (row < size - 1) {
+                    // Top half: size + row
+                    hexCount = size + row;
+                } else if (row >= size) {
+                    // Bottom half: decreasing
+                    hexCount = maxHexes - (row - (size - 1));
+                } else {
+                    // Middle area (only special for odd sizes)
+                    hexCount = size % 2 === 1 ? maxHexes : size + row;
+                }
+                
+                // Calculate offset to center the row
+                let offset = Math.floor((maxHexes - hexCount) / 2);
+
+                // Adjust offset for even-sized grids on odd-indexed rows
+                if (size % 2 === 0 && row % 2 === 1) {
+                    offset--;
+                }
+
+                if (row !== size -1 && size % 2 === 0) {
+                    offset++;
+                }
+                
+                // Add offset hexes
+                for (let i = 0; i < offset; i++) {
+                    const spacer = document.createElement('div');
+                    spacer.className = 'hex invisible';
+                    gridRow.appendChild(spacer);
+                }
+                
+                // Add visible hexes
+                for (let col = 0; col < hexCount; col++) {
+                    const hex = document.createElement('div');
+                    hex.className = 'hex';
+                    gridRow.appendChild(hex);
+                }
+                const spacer = document.createElement('div');
+                    spacer.className = 'hex invisible';
+                    gridRow.appendChild(spacer);
+
+                
+                hexGrid.appendChild(gridRow);
             }
-            
-            hexGrid.appendChild(gridRow);
         }
 
-        // Handle hex clicks - simple toggle
+        // Initial creation
+        createHexGrid(parseInt(sizeInput.value));
+
+        // Handle size changes
+        sizeInput.addEventListener('input', (e) => {
+            const size = parseInt(e.target.value);
+            if (size >= 1 && size <= 10) {
+                createHexGrid(size);
+            }
+        });
+
+        // Handle hex clicks - toggle between paint color and default hex color
         hexGrid.addEventListener('click', (e) => {
-            if (e.target.classList.contains('hex')) {
+            if (e.target.classList.contains('hex') && !e.target.classList.contains('invisible')) {
                 const hex = e.target;
                 hex.style.backgroundColor = 
-                    hex.style.backgroundColor ? '' : paintColorPicker.value;
+                    hex.style.backgroundColor === paintColorPicker.value ? '#e6d7b7' : paintColorPicker.value;
             }
         });
 
