@@ -37,6 +37,21 @@ function hexToHSL(hex) {
 
 // Data structure for character
 class Character {
+    // Add hex grid constants
+    static HEX_GRID = {
+        ROWS: 5,
+        COLS: 5,
+        get TOTAL_CELLS() {
+            return this.ROWS * this.COLS;
+        },
+        get CENTER_INDEX() {
+            return Math.floor(this.TOTAL_CELLS / 2);
+        },
+        get DEFAULT_INDEX() {
+            return Math.floor(this.TOTAL_CELLS / 2) - 2;
+        }
+    };
+
     constructor() {
         this.name = '';
         this.abilities = [];
@@ -141,8 +156,9 @@ class Character {
             number: '',
             text: '',
             grid: type === 'attack' ? {
-                mode: 'hex5',  // Changed from '8x5'
-                cells: Array(45).fill(false)  // 5x9 hex grid = 45 cells
+                mode: 'hex5',
+                cells: Array(Character.HEX_GRID.TOTAL_CELLS).fill(false),
+                activeIndex: Character.HEX_GRID.DEFAULT_INDEX
             } : null
         });
         this.updateAbilitiesDisplay();
@@ -176,34 +192,42 @@ class Character {
                 if (!ability.grid || !ability.grid.mode) {
                     ability.grid = {
                         mode: 'hex5',
-                        cells: Array(45).fill(false)
+                        cells: Array(Character.HEX_GRID.TOTAL_CELLS).fill(false)
                     };
                 }
 
                 // Convert old grid formats to hex
                 if (ability.grid.mode === '8x5' || ability.grid.mode === '7x7') {
                     ability.grid.mode = 'hex5';
-                    ability.grid.cells = Array(45).fill(false);
+                    ability.grid.cells = Array(Character.HEX_GRID.TOTAL_CELLS).fill(false);
                 }
 
-                const centerIndex = 22; // Center cell in 5x9 grid
+                const centerIndex = Character.HEX_GRID.CENTER_INDEX;
+                const defaultIndex = Character.HEX_GRID.DEFAULT_INDEX;
                 
                 middleContent = `<div class="hex-grid">`;
                 
-                // Create 5 rows of hexes
-                for (let row = 0; row < 5; row++) {
+                // Create rows of hexes
+                for (let row = 0; row < Character.HEX_GRID.ROWS; row++) {
                     middleContent += `<div class="grid-row">`;
-                    // Each row has 9 cells
-                    const cellsInRow = 9;
-                    for (let col = 0; col < cellsInRow; col++) {
-                        const index = row * cellsInRow + col;
-                        const isCenter = index === centerIndex;
-                        const cellContent = isCenter ? '➡️' : (ability.grid.cells[index] ? '💥' : '');
+                    
+                    // Each row has COLS cells
+                    for (let col = 0; col < Character.HEX_GRID.COLS; col++) {
+                        const index = row * Character.HEX_GRID.COLS + col;
+                        const isPlayerSpot = index === defaultIndex || index === centerIndex;
+                        const isActiveSpot = index === ability.grid.activeIndex;
+                        
+                        // Show arrow only on active spot, allow blast on inactive player spot
+                        const cellContent = isActiveSpot ? '➡️' : ability.grid.cells[index] ? '💥' : '';
+                        
                         middleContent += `
-                            <div class="grid-cell${isCenter ? ' arrow' : ''}" data-index="${index}">
+                            <div class="grid-cell${isActiveSpot ? ' arrow' : ''}" data-index="${index}">
                                 <span>${cellContent}</span>
                             </div>`;
                     }
+                    
+                    // Add trailing invisible hex
+                    middleContent += `<div class="grid-cell invisible"><span></span></div>`;
                     middleContent += `</div>`;
                 }
                 
@@ -231,19 +255,25 @@ class Character {
             
             // Add click handlers for grid cells and arrow
             if (ability.type === 'attack') {
-                const arrow = abilityDiv.querySelector('.arrow');
-                arrow.addEventListener('click', () => {
-                    ability.grid.mode = ability.grid.mode === '8x5' ? '7x7' : '8x5';
-                    this.updateAbilitiesDisplay();
-                });
-
-                const gridCells = abilityDiv.querySelectorAll('.grid-cell:not(.arrow)');
+                const gridCells = abilityDiv.querySelectorAll('.grid-cell');
                 gridCells.forEach(cell => {
                     cell.addEventListener('click', () => {
-                        const gridIndex = parseInt(cell.dataset.index);
-                        ability.grid.cells[gridIndex] = !ability.grid.cells[gridIndex];
-                        const span = cell.querySelector('span');
-                        span.textContent = ability.grid.cells[gridIndex] ? '💥' : '';
+                        const index = parseInt(cell.dataset.index);
+                        const isActiveSpot = index === ability.grid.activeIndex;
+                        
+                        if (isActiveSpot) {
+                            // Toggle arrow between positions
+                            ability.grid.activeIndex = 
+                                index === Character.HEX_GRID.DEFAULT_INDEX ? 
+                                Character.HEX_GRID.CENTER_INDEX : 
+                                Character.HEX_GRID.DEFAULT_INDEX;
+                            this.updateAbilitiesDisplay();
+                        } else {
+                            // Toggle blast for non-active spots
+                            ability.grid.cells[index] = !ability.grid.cells[index];
+                            const span = cell.querySelector('span');
+                            span.textContent = ability.grid.cells[index] ? '💥' : '';
+                        }
                     });
                 });
             }
