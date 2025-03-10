@@ -98,6 +98,7 @@ class Character {
         
         // Update the mat background
         document.querySelector('.character-mat').style.backgroundColor = color;
+        document.documentElement.style.setProperty('--mat-color', color);
         
         const armorContainer = document.getElementById('armorContainer');
         armorContainer.style.color = darkColor;
