@@ -193,7 +193,8 @@ class Character {
                 if (!ability.grid || !ability.grid.mode) {
                     ability.grid = {
                         mode: 'hex5',
-                        cells: Array(Character.HEX_GRID.TOTAL_CELLS).fill(false)
+                        cells: Array(Character.HEX_GRID.TOTAL_CELLS).fill(false),
+                        activeIndex: Character.HEX_GRID.DEFAULT_INDEX
                     };
                 }
 
@@ -201,6 +202,12 @@ class Character {
                 if (ability.grid.mode === '8x5' || ability.grid.mode === '7x7') {
                     ability.grid.mode = 'hex5';
                     ability.grid.cells = Array(Character.HEX_GRID.TOTAL_CELLS).fill(false);
+                    ability.grid.activeIndex = Character.HEX_GRID.DEFAULT_INDEX;
+                }
+
+                // Ensure activeIndex exists and is valid
+                if (ability.grid.activeIndex === undefined) {
+                    ability.grid.activeIndex = Character.HEX_GRID.DEFAULT_INDEX;
                 }
 
                 const centerIndex = Character.HEX_GRID.CENTER_INDEX;
