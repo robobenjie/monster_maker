@@ -76,11 +76,12 @@
     gap: 10px;
     margin-bottom: 15px;
     min-height: 40px;
+    position: relative;
 }
 
 .ability-number {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
     border: var(--border-style);
     border-radius: var(--border-radius);
     display: flex;
@@ -91,7 +92,7 @@
 }
 
 .ability-number input {
-    width: 30px;
+    width: 25px;
     text-align: center;
     border: none;
     font-family: 'Audiowide', cursive;
@@ -130,16 +131,25 @@
 }
 
 .delete-ability {
-    width: 30px;
-    height: 30px;
+    position: absolute;
+    right: 0px;
+    top: 15%;
+    transform: translateY(-50%);
+    width: 25px;
+    height: 25px;
     border: var(--border-style);
     border-radius: var(--border-radius);
     background: #ff4444;
     color: white;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    z-index: 1;
+}
+
+.ability-item:hover .delete-ability {
+    display: flex;
 }
 
 .add-ability {
@@ -397,7 +407,7 @@ button:hover {
     display: inline-block;
     font-size: 0;
     padding: 4px;
-    width: 130px;
+    width: 75px;
 }
 
 .grid-cell {
@@ -488,4 +498,14 @@ button:hover {
     visibility: hidden;
     background-color: transparent;
     border-color: transparent;
+}
+
+.ability-checkbox {
+    width: 30px;
+    height: 30px;
+    border: var(--border-style);
+    border-radius: var(--border-radius);
+    background: white;
+    flex-shrink: 0;
+    margin-right: 50x;
 }

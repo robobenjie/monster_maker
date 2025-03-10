@@ -238,6 +238,7 @@ class Character {
                 <div class="ability-content">
                     <input type="text" class="ability-name" value="${ability.name}" placeholder="Ability Name" data-index="${index}">
                     <div class="ability-row">
+                        <div class="ability-checkbox"></div>
                         <div class="ability-number">
                             <input type="text" value="${ability.number}" data-index="${index}">
                         </div>
