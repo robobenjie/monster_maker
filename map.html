@@ -154,20 +154,20 @@
             gap: 5px;
         }
 
-        // Add after the hex-grid styles and before the button styles
         .map-lines {
-            position: absolute;
-            top: 0;
+            top: 100px; /* Match the padding-top of hex-grid */
             left: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
             z-index: 4; /* Above rocks and crystals */
+            overflow: visible; /* Allow lines to extend beyond SVG boundaries */
         }
 
         .map-line {
             stroke: rgba(0, 0, 0, 0.5);
-            stroke-width: 3;
+            stroke-width: 4;
+            stroke-linecap: round;
         }
     </style>
 </head>
@@ -337,51 +337,54 @@
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.classList.add('map-lines');
             
-            // Calculate center point (middle hex center)
-            const centerRow = Math.floor(totalRows / 2);
-            const centerCol = Math.floor(maxHexes / 2);
-            const hexHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-height'));
-            const hexWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-width'));
-            
-            // Calculate center point coordinates
-            const centerX = (hexWidth * (centerCol + 0.5)) + (hexWidth / 2);
-            const centerY = (hexHeight * 0.75 * centerRow) + (hexHeight / 2);
+            // Wait for styles to be computed
+            setTimeout(() => {
+                // Calculate center point (middle hex center)
+                const centerRow = Math.floor(totalRows / 2);
+                const centerCol = Math.floor(maxHexes / 2);
+                const hexWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-width'));
+                const hexHeight = hexWidth * 1.1547005;
+                
+                // Calculate center point coordinates
+                const centerX = (hexWidth * (centerCol + 0.5)) + (hexWidth / 2);
+                const centerY = -(hexHeight * 0.75 * (centerRow + 0.5*0.75) - 4);
 
-            // Set SVG viewport
-            svg.setAttribute('width', hexGrid.offsetWidth);
-            svg.setAttribute('height', hexGrid.offsetHeight);
-            
-            // Calculate line length (should extend to edges)
-            const lineLength = Math.max(hexGrid.offsetWidth, hexGrid.offsetHeight) * 2;
-            
-            // Create the three lines
-            // Straight up
-            const lineUp = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            lineUp.setAttribute('x1', centerX);
-            lineUp.setAttribute('y1', centerY);
-            lineUp.setAttribute('x2', centerX);
-            lineUp.setAttribute('y2', centerY - lineLength);
-            lineUp.classList.add('map-line');
+                // Set SVG viewport
+                svg.setAttribute('width', hexGrid.offsetWidth);
+                svg.setAttribute('height', hexGrid.offsetHeight);
+                
+                // Calculate line length (should extend to edges)
+                const lineLength = Math.max(hexGrid.offsetWidth, hexGrid.offsetHeight) * 2;
+                
+                // Create the three lines
+                // Straight up
+                const lineUp = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                lineUp.setAttribute('x1', centerX);
+                lineUp.setAttribute('y1', centerY);
+                lineUp.setAttribute('x2', centerX);
+                lineUp.setAttribute('y2', centerY - lineLength);
+                lineUp.classList.add('map-line');
 
-            // Down-left at 30 degrees
-            const lineLeft = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            lineLeft.setAttribute('x1', centerX);
-            lineLeft.setAttribute('y1', centerY);
-            lineLeft.setAttribute('x2', centerX - (lineLength * Math.sin(Math.PI/6)));
-            lineLeft.setAttribute('y2', centerY + (lineLength * Math.cos(Math.PI/6)));
-            lineLeft.classList.add('map-line');
+                // Down-left at 120 degrees
+                const lineLeft = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                lineLeft.setAttribute('x1', centerX);
+                lineLeft.setAttribute('y1', centerY);
+                lineLeft.setAttribute('x2', centerX - (lineLength * Math.cos(Math.PI/6)));
+                lineLeft.setAttribute('y2', centerY + (lineLength * Math.sin(Math.PI/6)));
+                lineLeft.classList.add('map-line');
 
-            // Down-right at 30 degrees
-            const lineRight = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            lineRight.setAttribute('x1', centerX);
-            lineRight.setAttribute('y1', centerY);
-            lineRight.setAttribute('x2', centerX + (lineLength * Math.sin(Math.PI/6)));
-            lineRight.setAttribute('y2', centerY + (lineLength * Math.cos(Math.PI/6)));
-            lineRight.classList.add('map-line');
+                // Down-right at 240 degrees
+                const lineRight = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                lineRight.setAttribute('x1', centerX);
+                lineRight.setAttribute('y1', centerY);
+                lineRight.setAttribute('x2', centerX + (lineLength * Math.cos(Math.PI/6)));
+                lineRight.setAttribute('y2', centerY + (lineLength * Math.sin(Math.PI/6)));
+                lineRight.classList.add('map-line');
 
-            svg.appendChild(lineUp);
-            svg.appendChild(lineLeft);
-            svg.appendChild(lineRight);
+                svg.appendChild(lineUp);
+                svg.appendChild(lineLeft);
+                svg.appendChild(lineRight);
+            }, 200);
             
             hexGrid.appendChild(svg);
         }
