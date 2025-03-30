@@ -21,38 +21,66 @@
         .hex-grid {
             display: inline-block;
             font-size: 0;
-            padding: 20px;
-            background: #F0e5cc;
-            border-radius: 8px;
+            padding: 0;
+            background-image: url('map_assets/grass.png');
+            background-repeat: no-repeat;
+            background-size: contain;
+            width: 100%;
+            aspect-ratio: auto;
+        }
+
+        :root {
+            --hex-width: 128px;
+            --hex-height: calc(var(--hex-width) * 1.1547005);
+            --row-height: calc(var(--hex-height) * 0.75);
         }
 
         .grid-row {
             display: block;
-            height: 45px;
+            height: var(--row-height);
             white-space: nowrap;
         }
 
         .grid-row:nth-child(even) {
-            margin-left: 26px;
+            margin-left: calc(var(--hex-width) / 2);
         }
 
         .hex {
             position: relative;
-            width: 52px;
-            height: 60px;
-            background-color: #e6d7b7;
-            margin: 0px 0;
+            width: var(--hex-width);
+            height: var(--hex-height);
+            margin: 0;
             display: inline-block;
-            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
             cursor: pointer;
             vertical-align: top;
-            border: 0px solid rgba(0, 0, 0, 0.1);
+            --b: 3px; /* border thickness */
+            background: rgba(0, 0, 0, 0.4);
+            clip-path: polygon(
+                50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%, 50% 0, /* Close outer path */
+                50% var(--b),
+                calc(var(--b)*sin(60deg)) calc(25% + var(--b)*cos(60deg)),
+                calc(var(--b)*sin(60deg)) calc(75% - var(--b)*cos(60deg)),
+                50% calc(100% - var(--b)),
+                calc(100% - var(--b)*sin(60deg)) calc(75% - var(--b)*cos(60deg)),
+                calc(100% - var(--b)*sin(60deg)) calc(25% + var(--b)*cos(60deg)),
+                50% var(--b)
+            );
         }
 
-        .color-picker-label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
+        .hex::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: transparent; /* This creates the inner transparent area */
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        .hex.invisible {
+            visibility: hidden;
+            background-color: transparent;
         }
 
         button {
@@ -69,74 +97,51 @@
             background-color: #45a049;
         }
 
-        .hex.invisible {
-            visibility: hidden;
-            background-color: transparent;
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="controls">
-            <div class="color-picker-label">
-                Background:
-                <input type="color" id="bgColorPicker" value="#F0e5cc">
-            </div>
-            <div class="color-picker-label">
-                Paint Color:
-                <input type="color" id="paintColorPicker" value="#e6d7b7">
-            </div>
-            <div class="color-picker-label">
+            <label>
                 Size:
                 <input type="number" id="sizeInput" value="4" min="1" max="10" style="width: 60px">
-            </div>
+            </label>
             <button id="saveButton">Save as Image</button>
         </div>
         <div id="hexGrid" class="hex-grid"></div>
     </div>
     <script>
         const hexGrid = document.getElementById('hexGrid');
-        const bgColorPicker = document.getElementById('bgColorPicker');
-        const paintColorPicker = document.getElementById('paintColorPicker');
         const saveButton = document.getElementById('saveButton');
         const sizeInput = document.getElementById('sizeInput');
 
-        // Shade Blend Convert helper function
-        const pSBC=(p,c0,c1)=>{
-            let r,g,b,P,f,t,h;
-            const m=Math.round;
-            const a=typeof(c1)=="string";
-            if(typeof(p)!="number"||p<-1||p>1||typeof(c0)!="string"||(c0[0]!='r'&&c0[0]!='#')||(c1&&!a))return null;
-            if(!this.pSBCr)this.pSBCr=(d)=>{
-                let n=d.length,x={};
-                if(n>9){
-                    [r,g,b,a]=d.split(","),n=d.length;
-                    if(n<3||n>4)return null;
-                    x.r=parseInt(r[3]=="a"?r.slice(5):r.slice(4)),
-                    x.g=parseInt(g),
-                    x.b=parseInt(b),
-                    x.a=a?parseFloat(a):-1;
-                }else{
-                    if(n==8||n==6||n<4)return null;
-                    if(n<6)d="#"+d[1]+d[1]+d[2]+d[2]+d[3]+d[3]+(n>4?d[4]+d[4]:"");
-                    const i=parseInt(d.slice(1),16);
-                    if(n==9||n==5)x.r=i>>24&255,x.g=i>>16&255,x.b=i>>8&255,x.a=m((i&255)/0.255)/1000;
-                    else x.r=i>>16,x.g=i>>8&255,x.b=i&255,x.a=-1;
-                }
-                return x;
-            };
-            h=c0.length>9,h=a?c1.length>9?true:c1=="c"?!h:false:h,f=this.pSBCr(c0),P=p<0,t=c1&&c1!="c"?this.pSBCr(c1):P?{r:0,g:0,b:0,a:-1}:{r:255,g:255,b:255,a:-1},p=P?p*-1:p,P=1-p;
-            if(!f||!t)return null;
-            if(h)return"rgb"+(f.a||t.a?"a(":"(")+m((P*f.r+p*t.r))+","+m((P*f.g+p*t.g))+","+m((P*f.b+p*t.b))+(f.a||t.a?","+((f.a||1)*(t.a||1)):")");
-            return"#"+(0x100000000+m(P*f.r+p*t.r)*0x1000000+m(P*f.g+p*t.g)*0x10000+m(P*f.b+p*t.b)*0x100).toString(16).slice(1,f.a||t.a?-2:undefined);
+        // Load the background image and get its dimensions
+        function loadBackgroundImage() {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    hexGrid.style.width = img.width + 'px';
+                    hexGrid.style.height = img.height + 'px';
+                    resolve({ width: img.width, height: img.height });
+                };
+                img.src = 'map_assets/grass.png';
+            });
         }
 
-        function createHexGrid(size) {
+        async function createHexGrid(size) {
+            const imgDimensions = await loadBackgroundImage();
+            
+            // Clear existing grid
             hexGrid.innerHTML = '';
             
             // Calculate total rows (2 * size - 1)
             const totalRows = 2 * size - 1;
-            const maxHexes = 2 * size - 1; // Maximum hexes in middle row
+            const maxHexes = 2 * size - 1;
             
             for (let row = 0; row < totalRows; row++) {
                 const gridRow = document.createElement('div');
@@ -198,22 +203,6 @@
             if (size >= 1 && size <= 10) {
                 createHexGrid(size);
             }
-        });
-
-        // Handle hex clicks - toggle between paint color and default hex color
-        hexGrid.addEventListener('click', (e) => {
-            if (e.target.classList.contains('hex') && !e.target.classList.contains('invisible')) {
-                const hex = e.target;
-                hex.style.backgroundColor = 
-                    hex.style.backgroundColor === paintColorPicker.value ? '#e6d7b7' : paintColorPicker.value;
-            }
-        });
-
-        // Simplified background color handler
-        bgColorPicker.addEventListener('input', (e) => {
-            const newColor = e.target.value;
-            const darkerColor = pSBC(-0.15, newColor);
-            hexGrid.style.backgroundColor = darkerColor;
         });
 
         // Handle save button
