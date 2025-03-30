@@ -9,7 +9,6 @@
             max-width: 1200px;
             margin: 40px auto;
             padding: 20px;
-            pointer-events: none;
         }
 
         .controls {
@@ -28,7 +27,6 @@
             background-size: contain;
             width: 100%;
             aspect-ratio: auto;
-            pointer-events: none; /* Prevent grid-row from catching clicks */
         }
 
         :root {
@@ -54,9 +52,18 @@
             height: var(--hex-height);
             margin: 0;
             display: inline-block;
-            cursor: pointer;
             vertical-align: top;
             --b: 1px; /* border thickness */
+            cursor: pointer;
+            pointer-events: none; /* Let events pass through to children */
+        }
+
+        .hex-border {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: rgba(0, 0, 0, 0.4);
             clip-path: polygon(
                 50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%, 50% 0,
@@ -69,20 +76,16 @@
                 50% var(--b)
             );
             z-index: 1;
-            pointer-events: auto; /* Ensure hex receives clicks */
         }
 
-        .hex::before {
-            content: '';
+        .hex-content {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: transparent;
-            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-            pointer-events: none; /* Make clicks go through to the hex */
-            z-index: 0;
+            z-index: 2;
+            pointer-events: auto; /* Ensure content receives events */
         }
 
         .hex.invisible {
@@ -209,15 +212,20 @@
                 for (let col = 0; col < hexCount; col++) {
                     const hex = document.createElement('div');
                     hex.className = 'hex';
-                    hex.addEventListener('click', () => {
+                    
+                    const hexBorder = document.createElement('div');
+                    hexBorder.className = 'hex-border';
+                    
+                    const hexContent = document.createElement('div');
+                    hexContent.className = 'hex-content';
+                    
+                    hexContent.addEventListener('click', () => {
                         console.log("clicked", hex);
                         const existingRock = hex.querySelector('.rock-image');
                         
                         if (existingRock) {
-                            // Remove rock if it exists
                             existingRock.remove();
                         } else {
-                            // Add random rock
                             const randomRock = rockImages[Math.floor(Math.random() * ROCK_COUNT)];
                             const rockImg = document.createElement('img');
                             rockImg.src = randomRock.src;
@@ -225,6 +233,9 @@
                             hex.appendChild(rockImg);
                         }
                     });
+
+                    hex.appendChild(hexBorder);
+                    hex.appendChild(hexContent);
                     gridRow.appendChild(hex);
                 }
                 const spacer = document.createElement('div');
