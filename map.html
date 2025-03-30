@@ -55,9 +55,9 @@
             padding: 0;
             background-image: url('map_assets/grass.png');
             background-repeat: no-repeat;
-            background-size: contain;
-            width: 100%;
-            aspect-ratio: auto;
+            background-size: 1024px 1024px;  /* Set fixed size */
+            width: 1024px;  /* Match background size */
+            height: 1024px;  /* Match background size */
             padding: 100px 0px 0px 0px;
         }
 
@@ -91,6 +91,7 @@
         }
 
         .hex-border {
+            display: none;
             position: absolute;
             top: 0;
             left: 0;
@@ -169,7 +170,29 @@
             stroke-width: 4;
             stroke-linecap: round;
         }
+
+        .print-section {
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 2px solid #ccc;
+        }
+
+        .print-section canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+        }
+
+        @media print {
+            .controls, .mode-panel {
+                display: none;
+            }
+            .container {
+                margin-top: 0;
+            }
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
 </head>
 <body>
     <div class="container">
@@ -188,6 +211,10 @@
         <button class="mode-button" data-mode="blue">Blue Crystal</button>
         <button class="mode-button" data-mode="green">Green Crystal</button>
         <button class="mode-button" data-mode="yellow">Yellow Crystal</button>
+    </div>
+    <div class="print-section">
+        <h2>Print Preview</h2>
+        <canvas id="renderCanvas"></canvas>
     </div>
     <script>
         const hexGrid = document.getElementById('hexGrid');
@@ -210,8 +237,8 @@
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
-                    hexGrid.style.width = img.width + 'px';
-                    hexGrid.style.height = img.height + 'px';
+                    hexGrid.style.width = img.width / 2 + 'px';
+                    hexGrid.style.height = img.height / 2 + 'px';
                     resolve({ width: img.width, height: img.height });
                 };
                 img.src = 'map_assets/grass.png';
@@ -276,7 +303,7 @@
                     hexContent.className = 'hex-content';
                     
                     hexContent.addEventListener('click', () => {
-                        console.log("clicked", hex);
+                        console.log("clicked hex at", col, row);
                         const existingRock = hex.querySelector('.rock-image');
                         const existingCrystal = hex.querySelector('.crystal-image');
                         
@@ -386,7 +413,7 @@
                 svg.appendChild(lineRight);
             }, 200);
             
-            hexGrid.appendChild(svg);
+            //hexGrid.appendChild(svg);
         }
 
         // Initial creation
@@ -400,38 +427,56 @@
             }
         });
 
-        // Handle save button
-        saveButton.addEventListener('click', () => {
-            // Create a canvas element
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+        // Replace the saveButton event listener with this new version:
+        saveButton.addEventListener('click', async () => {
+            const renderCanvas = document.getElementById('renderCanvas');
+            const ctx = renderCanvas.getContext('2d');
             
-            // Set canvas size to match grid size plus padding
-            canvas.width = hexGrid.offsetWidth;
-            canvas.height = hexGrid.offsetHeight;
+            // Temporarily hide hex borders
+            const hexBorders = hexGrid.querySelectorAll('.hex-border');
+            const mapLines = hexGrid.querySelectorAll('.map-lines');
+            hexBorders.forEach(border => border.style.display = 'none');
+            mapLines.forEach(line => line.style.display = 'none');
+
             
-            // Draw background
-            ctx.fillStyle = hexGrid.style.backgroundColor || bgColorPicker.value;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Use html2canvas to capture the hex grid
+            const canvas = await html2canvas(hexGrid, {
+                backgroundColor: null,
+                scale: 1,
+                logging: false,
+                allowTaint: true,
+                useCORS: true
+            });
             
-            // Convert hex grid to image
-            const gridImage = new XMLSerializer().serializeToString(hexGrid);
-            const blob = new Blob([gridImage], {type: 'image/svg+xml'});
-            const url = URL.createObjectURL(blob);
+            // Restore hex borders
+            hexBorders.forEach(border => border.style.display = '');
+            mapLines.forEach(line => line.style.display = '');
+            // Set render canvas size to match captured image
+            renderCanvas.width = canvas.width;
+            renderCanvas.height = canvas.height;
             
-            const img = new Image();
-            img.onload = () => {
-                ctx.drawImage(img, 0, 0);
-                
-                // Convert canvas to jpeg and download
-                const link = document.createElement('a');
-                link.download = 'hex-map.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 0.9);
-                link.click();
-                
-                URL.revokeObjectURL(url);
-            };
-            img.src = 'data:image/svg+xml,' + encodeURIComponent(gridImage);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2 - 53;
+            const radius = Math.min(cx, cy);  // keep it safe inside the image
+
+            // Clear the canvas first
+            ctx.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+
+            // Move origin to the center of the image and create clip
+            ctx.save();
+            ctx.translate(cx, cy);
+            
+            // Create the clipping path before drawing anything
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, radius, -Math.PI/2, -Math.PI/2 + 2*Math.PI/3);  // 120 degrees slice
+            ctx.closePath();
+            ctx.clip();
+
+            // Draw the image centered (need to offset by -cx and -cy because of translation)
+            ctx.drawImage(canvas, 0, -cy);
+            
+            ctx.restore();
         });
 
         let currentMode = 'rocks';
