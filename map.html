@@ -452,8 +452,8 @@
             hexBorders.forEach(border => border.style.display = '');
             mapLines.forEach(line => line.style.display = '');
             // Set render canvas size to match captured image
-            renderCanvas.width = canvas.width;
-            renderCanvas.height = canvas.height;
+            renderCanvas.width = 900;
+            renderCanvas.height = renderCanvas.width * 11 / 8.5;
             
             const cx = canvas.width / 2;
             const cy = canvas.height / 2 - 53;
@@ -462,9 +462,10 @@
             // Clear the canvas first
             ctx.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
 
-            // Move origin to the center of the image and create clip
+            // Move origin to left side at vertical center
+            ctx.rotate(-15 * Math.PI / 180);
             ctx.save();
-            ctx.translate(cx, cy);
+            ctx.translate(220, cy + 100);
             
             // Create the clipping path before drawing anything
             ctx.beginPath();
@@ -473,8 +474,24 @@
             ctx.closePath();
             ctx.clip();
 
-            // Draw the image centered (need to offset by -cx and -cy because of translation)
-            ctx.drawImage(canvas, 0, -cy);
+            // Draw the image with same center point as before
+            ctx.drawImage(canvas, -cx, -cy);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(cx - 100, 1.5*cy);
+            ctx.rotate(2 * Math.PI / 6); // 
+            
+            // Create the clipping path before drawing anything
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, radius, -Math.PI/2 + 2*Math.PI/3, -Math.PI/2 + 4*Math.PI/3);  // 120 degrees slice
+            ctx.closePath();
+            ctx.clip();
+
+            // Draw the image with same center point as before, rotated 120 degrees
+
+            ctx.drawImage(canvas, -cx, -cy);
             
             ctx.restore();
         });
