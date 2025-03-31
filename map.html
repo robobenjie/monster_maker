@@ -180,14 +180,54 @@
         .print-section canvas {
             border: 1px solid #ddd;
             margin: 10px;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact;
         }
 
         @media print {
-            .controls, .mode-panel {
-                display: none;
+            @page {
+                margin: 0;
+                size: letter;  /* 8.5in x 11in */
             }
-            .container {
-                margin-top: 0;
+
+            /* Hide everything except the render canvas */
+            body * {
+                visibility: hidden;
+                margin: 0;
+                padding: 0;
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .print-section {
+                position: absolute !important; /* Force position */
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                border: none;
+            }
+
+            #renderCanvas {
+                visibility: visible !important; /* Force visibility */
+                position: absolute !important;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                border: none;
+            }
+
+            /* Hide the Print Preview heading */
+            .print-section h2 {
+                display: none;
             }
         }
     </style>
@@ -304,6 +344,20 @@
                     
                     hexContent.addEventListener('click', () => {
                         console.log("clicked hex at", col, row);
+                        
+                        // Define forbidden hexes
+                        const forbiddenHexes = [
+                            {row: 4, col: 4},
+                            {row: 4, col: 1},
+                            {row: 1, col: 2}
+                        ];
+                        
+                        // Check if this hex is forbidden
+                        const isForbidden = forbiddenHexes.some(h => h.row === row && h.col === col);
+                        if (isForbidden) {
+                            return; // Exit if hex is forbidden
+                        }
+
                         const existingRock = hex.querySelector('.rock-image');
                         const existingCrystal = hex.querySelector('.crystal-image');
                         
@@ -360,6 +414,20 @@
                 hexGrid.appendChild(gridRow);
             }
 
+            // Add initial green crystal to position 3,3
+            const rows = hexGrid.querySelectorAll('.grid-row');
+            if (rows[3]) {
+                const hexes = rows[3].querySelectorAll('.hex:not(.invisible)');
+                if (hexes[3]) {
+                    const crystalImg = document.createElement('img');
+                    crystalImg.src = 'map_assets/green.png';
+                    crystalImg.className = 'crystal-image';
+                    crystalImg.dataset.color = 'green';
+                    hexes[3].appendChild(crystalImg);
+                    crystalElements.set('green', crystalImg);
+                }
+            }
+
             // After creating all hexes, add the dividing lines
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.classList.add('map-lines');
@@ -381,7 +449,7 @@
                 svg.setAttribute('height', hexGrid.offsetHeight);
                 
                 // Calculate line length (should extend to edges)
-                const lineLength = Math.max(hexGrid.offsetWidth, hexGrid.offsetHeight) * 2;
+                const lineLength = 500;
                 
                 // Create the three lines
                 // Straight up
@@ -413,7 +481,7 @@
                 svg.appendChild(lineRight);
             }, 200);
             
-            //hexGrid.appendChild(svg);
+            hexGrid.appendChild(svg);
         }
 
         // Initial creation
@@ -452,7 +520,7 @@
             hexBorders.forEach(border => border.style.display = '');
             mapLines.forEach(line => line.style.display = '');
             // Set render canvas size to match captured image
-            renderCanvas.width = 900;
+            renderCanvas.width = 840;
             renderCanvas.height = renderCanvas.width * 11 / 8.5;
             
             const cx = canvas.width / 2;
@@ -463,9 +531,9 @@
             ctx.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
 
             // Move origin to left side at vertical center
-            ctx.rotate(-15 * Math.PI / 180);
+            ctx.rotate(-30 * Math.PI / 180);
             ctx.save();
-            ctx.translate(220, cy + 100);
+            ctx.translate(-20, cy + 100);
             
             // Create the clipping path before drawing anything
             ctx.beginPath();
@@ -479,7 +547,7 @@
             ctx.restore();
 
             ctx.save();
-            ctx.translate(cx - 100, 1.5*cy);
+            ctx.translate(190, 1.5*cy - 25);
             ctx.rotate(2 * Math.PI / 6); // 
             
             // Create the clipping path before drawing anything
