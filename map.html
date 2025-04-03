@@ -204,7 +204,7 @@
             }
             
             .print-section {
-                position: absolute !important; /* Force position */
+                position: absolute !important;
                 left: 0;
                 top: 0;
                 width: 100%;
@@ -215,15 +215,18 @@
             }
 
             #renderCanvas {
-                visibility: visible !important; /* Force visibility */
+                visibility: visible !important;
                 position: absolute !important;
                 left: 0;
                 top: 0;
-                width: 100%;
-                height: 100%;
+                width: 100vw !important;
+                height: 100vh !important;
                 margin: 0;
                 padding: 0;
                 border: none;
+                object-fit: contain;
+                max-width: none !important;
+                max-height: none !important;
             }
 
             /* Hide the Print Preview heading */
@@ -661,62 +664,71 @@
             mapLines.forEach(line => line.style.display = 'none');
             flipArrows.forEach(arrow => arrow.style.display = 'none');
 
-            
-            // Use html2canvas to capture the hex grid
+            // Use html2canvas with higher scale factor
             const canvas = await html2canvas(hexGrid, {
                 backgroundColor: null,
-                scale: 1,
+                scale: 2, // Increase scale for better quality
                 logging: false,
                 allowTaint: true,
-                useCORS: true
+                useCORS: true,
+                imageTimeout: 0,
+                width: hexGrid.offsetWidth,
+                height: hexGrid.offsetHeight
             });
             
-            // Restore hex borders
+            // Restore visibility
             hexBorders.forEach(border => border.style.display = '');
             mapLines.forEach(line => line.style.display = '');
             flipArrows.forEach(arrow => arrow.style.display = '');
-            // Set render canvas size to match captured image
-            renderCanvas.width = 840;
+
+            // Set render canvas to higher resolution
+            renderCanvas.width = 840 * 2;  // Double the size
             renderCanvas.height = renderCanvas.width * 11 / 8.5;
             
+            // Scale the canvas display size back down with CSS
+            renderCanvas.style.width = '840px';
+            renderCanvas.style.height = (840 * 11 / 8.5) + 'px';
+            
             const cx = canvas.width / 2;
-            const cy = canvas.height / 2 - 53;
-            const radius = Math.min(cx, cy);  // keep it safe inside the image
+            const cy = canvas.height / 2 - 53 * 2; // Adjust for scale
+            const radius = Math.min(cx, cy);
 
             // Clear the canvas first
             ctx.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
 
+            // Enable image smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
             // Move origin to left side at vertical center
             ctx.rotate(-30 * Math.PI / 180);
             ctx.save();
-            ctx.translate(-20, cy + 100);
+            ctx.translate(-40, cy + 200); // Adjust for new scale
             
             // Create the clipping path before drawing anything
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.arc(0, 0, radius, -Math.PI/2, -Math.PI/2 + 2*Math.PI/3);  // 120 degrees slice
+            ctx.arc(0, 0, radius, -Math.PI/2, -Math.PI/2 + 2*Math.PI/3);
             ctx.closePath();
             ctx.clip();
 
-            // Draw the image with same center point as before
+            // Draw the image
             ctx.drawImage(canvas, -cx, -cy);
             ctx.restore();
 
             ctx.save();
-            ctx.translate(190, 1.5*cy - 25);
-            ctx.rotate(2 * Math.PI / 6); // 
+            ctx.translate(380, 1.5*cy - 50); // Adjust for new scale
+            ctx.rotate(2 * Math.PI / 6);
             
-            // Create the clipping path before drawing anything
+            // Create the clipping path
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.arc(0, 0, radius, -Math.PI/2 + 2*Math.PI/3, -Math.PI/2 + 4*Math.PI/3);  // 120 degrees slice
+            ctx.arc(0, 0, radius, -Math.PI/2 + 2*Math.PI/3, -Math.PI/2 + 4*Math.PI/3);
             ctx.closePath();
             ctx.clip();
 
-            // Draw the image with same center point as before, rotated 120 degrees
-
+            // Draw the image
             ctx.drawImage(canvas, -cx, -cy);
-            
             ctx.restore();
         });
 
