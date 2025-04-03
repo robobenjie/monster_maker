@@ -192,40 +192,48 @@
             @page {
                 margin: 0;
                 size: letter;
+                padding: 0;
+            }
+
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
             }
 
             body * {
                 visibility: hidden;
-                margin: 0;
-                padding: 0;
             }
             
             .print-section {
-                display: block !important;  /* Override the inline style */
+                display: block !important;
                 visibility: visible !important;
                 position: relative !important;
-                margin: 0;
-                padding: 0;
+                margin: 0 !important;
+                padding: 0 !important;
                 border: none;
             }
 
             .print-section canvas {
                 visibility: visible !important;
-                display: block;
-                position: relative;
+                display: block !important;
+                position: relative !important;
                 width: 100vw !important;
                 height: 100vh !important;
-                margin: 0;
-                padding: 0;
+                margin: 0 !important;
+                padding: 0 !important;
                 border: none;
-                object-fit: contain;
-                max-width: none !important;
-                max-height: none !important;
+                page-break-before: always;
                 page-break-after: always;
+                page-break-inside: avoid;
             }
 
-            .print-section canvas:last-child {
+            .print-section canvas:last-of-type {
                 page-break-after: avoid;
+            }
+
+            .print-section canvas:first-of-type {
+                page-break-before: avoid;
             }
 
             .print-section h2 {
