@@ -299,7 +299,6 @@
         <button class="mode-button active" data-mode="rocks">Rocks</button>
         <button class="mode-button" data-mode="pink">Pink Crystal</button>
         <button class="mode-button" data-mode="blue">Blue Crystal</button>
-        <button class="mode-button" data-mode="green">Green Crystal</button>
         <button class="mode-button" data-mode="yellow">Yellow Crystal</button>
     </div>
     <div class="print-section">
@@ -410,40 +409,53 @@
                             return; // Exit if hex is forbidden
                         }
 
-
-                        const existingRock = hex.querySelector(`.rock-image[data-side="${hex.dataset.side}"]`);
-                        const existingCrystal = hex.querySelector(`.crystal-image[data-side="${hex.dataset.side}"]`);
+                        // Check for existing items on either side
+                        const existingRock = hex.querySelector('.rock-image');
+                        const existingCrystal = hex.querySelector('.crystal-image');
                         
-                        // Remove any existing rock
-                        if (existingRock) {
-                            existingRock.remove();
-                        }
-
                         if (currentMode === 'rocks') {
-                            if (!existingRock && !existingCrystal) {
+                            // Remove any existing rock on current side
+                            const existingRockOnSide = hex.querySelector(`.rock-image[data-side="${hex.dataset.side}"]`);
+                            if (existingRockOnSide) {
+                                existingRockOnSide.remove();
+                            }
+
+                            if (!existingRockOnSide && !existingCrystal) {
                                 const randomRock = rockImages[Math.floor(Math.random() * ROCK_COUNT)];
                                 const rockImg = document.createElement('img');
                                 rockImg.src = randomRock.src;
                                 rockImg.className = 'rock-image';
-                                rockImg.dataset.side = hex.dataset.side; // Track which side this rock belongs to
+                                rockImg.dataset.side = hex.dataset.side;
                                 hex.appendChild(rockImg);
                             }
                         } else {
                             // Crystal handling
                             const color = currentMode;
                             
-                            // Remove existing crystal of same color from its current location
-                            const existingColorCrystal = crystalElements.get(color);
-                            if (existingColorCrystal) {
-                                existingColorCrystal.remove();
-                                crystalElements.delete(color);
+                            // Prevent moving the green crystal
+                            if (color === 'green') {
+                                return; // Exit if trying to place green crystal
                             }
 
-                            // Remove any existing crystal in the target hex
-                            if (existingCrystal) {
-                                const crystalColor = existingCrystal.dataset.color;
-                                crystalElements.delete(crystalColor);
-                                existingCrystal.remove();
+                            const hexSection = getHexSection(row, col);
+                            
+                            // Check if this crystal is allowed in this section
+                            if (crystalElements[color].section && crystalElements[color].section !== hexSection) {
+                                return; // Crystal must stay in its assigned section
+                            }
+
+                            // Remove existing crystal of same color from current side
+                            const existingSide = hex.dataset.side;
+                            if (crystalElements[color][existingSide]) {
+                                crystalElements[color][existingSide].remove();
+                            }
+
+                            // Remove any existing crystal in the target hex (on current side)
+                            const existingCrystalOnSide = hex.querySelector(`.crystal-image[data-side="${hex.dataset.side}"]`);
+                            if (existingCrystalOnSide) {
+                                const crystalColor = existingCrystalOnSide.dataset.color;
+                                crystalElements[crystalColor][existingSide] = null;
+                                existingCrystalOnSide.remove();
                             }
 
                             // Add new crystal
@@ -451,9 +463,12 @@
                             crystalImg.src = `map_assets/${color}.png`;
                             crystalImg.className = 'crystal-image';
                             crystalImg.dataset.color = color;
-                            crystalImg.dataset.side = hex.dataset.side; // Track which side this crystal belongs to
+                            crystalImg.dataset.side = hex.dataset.side;
                             hex.appendChild(crystalImg);
-                            crystalElements.set(color, crystalImg);
+
+                            // Update tracking
+                            crystalElements[color].section = hexSection;
+                            crystalElements[color][hex.dataset.side] = crystalImg;
                         }
                     });
 
@@ -478,8 +493,96 @@
                     crystalImg.src = 'map_assets/green.png';
                     crystalImg.className = 'crystal-image';
                     crystalImg.dataset.color = 'green';
+                    crystalImg.dataset.side = 'A';
                     hexes[3].appendChild(crystalImg);
-                    crystalElements.set('green', crystalImg);
+                    
+                    // Initialize tracking for green crystal
+                    crystalElements.green.section = 'upperRight';
+                    crystalElements.green.A = crystalImg;
+                }
+            }
+
+            // Add initial pink crystal at 2,1
+            if (rows[2]) {
+                const hexes = rows[2].querySelectorAll('.hex:not(.invisible)');
+                if (hexes[1]) {
+                    // Side A
+                    const crystalImgA = document.createElement('img');
+                    crystalImgA.src = 'map_assets/pink.png';
+                    crystalImgA.className = 'crystal-image';
+                    crystalImgA.dataset.color = 'pink';
+                    crystalImgA.dataset.side = 'A';
+                    hexes[1].appendChild(crystalImgA);
+
+                    // Side B
+                    const crystalImgB = document.createElement('img');
+                    crystalImgB.src = 'map_assets/pink.png';
+                    crystalImgB.className = 'crystal-image';
+                    crystalImgB.dataset.color = 'pink';
+                    crystalImgB.dataset.side = 'B';
+                    crystalImgB.style.display = 'none';
+                    hexes[1].appendChild(crystalImgB);
+                    
+                    // Initialize tracking
+                    crystalElements.pink.section = 'upperLeft';
+                    crystalElements.pink.A = crystalImgA;
+                    crystalElements.pink.B = crystalImgB;
+                }
+            }
+
+            // Add initial blue crystal at 2,4
+            if (rows[2]) {
+                const hexes = rows[2].querySelectorAll('.hex:not(.invisible)');
+                if (hexes[4]) {
+                    // Side A
+                    const crystalImgA = document.createElement('img');
+                    crystalImgA.src = 'map_assets/blue.png';
+                    crystalImgA.className = 'crystal-image';
+                    crystalImgA.dataset.color = 'blue';
+                    crystalImgA.dataset.side = 'A';
+                    hexes[4].appendChild(crystalImgA);
+
+                    // Side B
+                    const crystalImgB = document.createElement('img');
+                    crystalImgB.src = 'map_assets/blue.png';
+                    crystalImgB.className = 'crystal-image';
+                    crystalImgB.dataset.color = 'blue';
+                    crystalImgB.dataset.side = 'B';
+                    crystalImgB.style.display = 'none';
+                    hexes[4].appendChild(crystalImgB);
+                    
+                    // Initialize tracking - Fix the section
+                    crystalElements.blue.section = 'upperRight';  // Changed from 'bottom'
+                    crystalElements.blue.A = crystalImgA;
+                    crystalElements.blue.B = crystalImgB;
+                }
+            }
+
+            // Add initial yellow crystal at 5,2
+            if (rows[5]) {
+                const hexes = rows[5].querySelectorAll('.hex:not(.invisible)');
+                if (hexes[2]) {
+                    // Side A
+                    const crystalImgA = document.createElement('img');
+                    crystalImgA.src = 'map_assets/yellow.png';
+                    crystalImgA.className = 'crystal-image';
+                    crystalImgA.dataset.color = 'yellow';
+                    crystalImgA.dataset.side = 'A';
+                    hexes[2].appendChild(crystalImgA);
+
+                    // Side B
+                    const crystalImgB = document.createElement('img');
+                    crystalImgB.src = 'map_assets/yellow.png';
+                    crystalImgB.className = 'crystal-image';
+                    crystalImgB.dataset.color = 'yellow';
+                    crystalImgB.dataset.side = 'B';
+                    crystalImgB.style.display = 'none';
+                    hexes[2].appendChild(crystalImgB);
+                    
+                    // Initialize tracking - Fix the section
+                    crystalElements.yellow.section = 'bottom';  // Changed from 'upperRight'
+                    crystalElements.yellow.A = crystalImgA;
+                    crystalElements.yellow.B = crystalImgB;
                 }
             }
 
@@ -618,7 +721,12 @@
         });
 
         let currentMode = 'rocks';
-        const crystalElements = new Map(); // Track crystal locations by color
+        const crystalElements = {
+            pink: { section: null, A: null, B: null },
+            blue: { section: null, A: null, B: null },
+            green: { section: null, A: null, B: null },
+            yellow: { section: null, A: null, B: null }
+        };
 
         // Initialize mode buttons
         document.querySelectorAll('.mode-button').forEach(button => {
@@ -715,6 +823,14 @@
         document.getElementById('bottomFlip').addEventListener('click', function() {
             handleSectionFlip(this, bottomSection, 'bottom');
         });
+
+        // Add this before the click handler
+        function getHexSection(row, col) {
+            if (isHexInSection(row, col, upperRightSection)) return 'upperRight';
+            if (isHexInSection(row, col, upperLeftSection)) return 'upperLeft';
+            if (isHexInSection(row, col, bottomSection)) return 'bottom';
+            return null;
+        }
     </script>
 </body>
 </html> 
