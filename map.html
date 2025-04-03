@@ -176,6 +176,9 @@
             margin-top: 40px;
             padding: 20px;
             border-top: 2px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .print-section canvas {
@@ -188,37 +191,28 @@
         @media print {
             @page {
                 margin: 0;
-                size: letter;  /* 8.5in x 11in */
+                size: letter;
             }
 
-            /* Hide everything except the render canvas */
             body * {
                 visibility: hidden;
                 margin: 0;
                 padding: 0;
             }
             
-            body {
-                margin: 0;
-                padding: 0;
-            }
-            
             .print-section {
-                position: absolute !important;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
+                display: block !important;  /* Override the inline style */
+                visibility: visible !important;
+                position: relative !important;
                 margin: 0;
                 padding: 0;
                 border: none;
             }
 
-            #renderCanvas {
+            .print-section canvas {
                 visibility: visible !important;
-                position: absolute !important;
-                left: 0;
-                top: 0;
+                display: block;
+                position: relative;
                 width: 100vw !important;
                 height: 100vh !important;
                 margin: 0;
@@ -227,11 +221,19 @@
                 object-fit: contain;
                 max-width: none !important;
                 max-height: none !important;
+                page-break-after: always;
             }
 
-            /* Hide the Print Preview heading */
+            .print-section canvas:last-child {
+                page-break-after: avoid;
+            }
+
             .print-section h2 {
                 display: none;
+            }
+
+            #mapEditor {
+                display: none !important;
             }
         }
 
@@ -282,9 +284,14 @@
 
 </head>
 <body>
-    <div class="container">
+    <div class="print-section" style="display: none;">
+        <canvas id="renderCanvasTopA"></canvas>
+        <canvas id="renderCanvasTopB"></canvas>
+        <canvas id="renderCanvasBottom"></canvas>
+    </div>
+    <div class="container" id="mapEditor">
         <div class="controls">
-            <button id="saveButton">Save as Image</button>
+            <button id="saveButton">Print</button>
         </div>
         <div id="hexGrid" class="hex-grid">
             <div id="upperRightFlip" class="flip-arrow">
@@ -303,10 +310,6 @@
         <button class="mode-button" data-mode="pink">Pink Crystal</button>
         <button class="mode-button" data-mode="blue">Blue Crystal</button>
         <button class="mode-button" data-mode="yellow">Yellow Crystal</button>
-    </div>
-    <div class="print-section">
-        <h2>Print Preview</h2>
-        <canvas id="renderCanvas"></canvas>
     </div>
     <script>
         const hexGrid = document.getElementById('hexGrid');
@@ -492,16 +495,27 @@
             if (rows[3]) {
                 const hexes = rows[3].querySelectorAll('.hex:not(.invisible)');
                 if (hexes[3]) {
-                    const crystalImg = document.createElement('img');
-                    crystalImg.src = 'map_assets/green.png';
-                    crystalImg.className = 'crystal-image';
-                    crystalImg.dataset.color = 'green';
-                    crystalImg.dataset.side = 'A';
-                    hexes[3].appendChild(crystalImg);
+                    // Side A
+                    const crystalImgA = document.createElement('img');
+                    crystalImgA.src = 'map_assets/green.png';
+                    crystalImgA.className = 'crystal-image';
+                    crystalImgA.dataset.color = 'green';
+                    crystalImgA.dataset.side = 'A';
+                    hexes[3].appendChild(crystalImgA);
+
+                    // Side B
+                    const crystalImgB = document.createElement('img');
+                    crystalImgB.src = 'map_assets/green.png';
+                    crystalImgB.className = 'crystal-image';
+                    crystalImgB.dataset.color = 'green';
+                    crystalImgB.dataset.side = 'B';
+                    crystalImgB.style.display = 'none';
+                    hexes[3].appendChild(crystalImgB);
                     
                     // Initialize tracking for green crystal
                     crystalElements.green.section = 'upperRight';
-                    crystalElements.green.A = crystalImg;
+                    crystalElements.green.A = crystalImgA;
+                    crystalElements.green.B = crystalImgB;
                 }
             }
 
@@ -652,11 +666,94 @@
         createHexGrid();
 
         // Replace the saveButton event listener with this new version:
-        saveButton.addEventListener('click', async () => {
-            const renderCanvas = document.getElementById('renderCanvas');
-            const ctx = renderCanvas.getContext('2d');
+        async function renderSection(ctx, canvas, gridImage, sections, side) {
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Enable image smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Draw the sections
+            const cx = gridImage.width / 2;
+            const cy = gridImage.height / 2 - 53 * 2;
+            const radius = Math.min(cx, cy);
+
+            ctx.rotate(-30 * Math.PI / 180);
+            ctx.save();
+            ctx.translate(-40, cy + 200);
             
-            // Temporarily hide hex borders
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, radius, -Math.PI/2, -Math.PI/2 + 2*Math.PI/3);
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.drawImage(gridImage, -cx, -cy);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(380, 1.5*cy - 50);
+            ctx.rotate(2 * Math.PI / 6);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, radius, -Math.PI/2 + 2*Math.PI/3, -Math.PI/2 + 4*Math.PI/3);
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.drawImage(gridImage, -cx, -cy);
+            ctx.restore();
+        }
+
+        // Add this new function
+        async function renderBottomSection(ctx, canvas, gridImageA, gridImageB) {
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Enable image smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Draw the sections
+            const cx = gridImageA.width / 2;
+            const cy = gridImageA.height / 2 - 53 * 2;
+            const radius = Math.min(cx, cy);
+
+            // Draw side A
+            ctx.save();
+            ctx.translate(550, cy + 40);
+            ctx.rotate(-30 * Math.PI / 180);
+            ctx.rotate(2*Math.PI/3);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, radius, -Math.PI/2 -2*Math.PI/3, -Math.PI/2);
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.drawImage(gridImageA, -cx, -cy);
+            ctx.restore();
+
+            // Draw side B
+            ctx.save();
+            ctx.translate(550, cy + 60);
+            ctx.rotate(-30 * Math.PI / 180 + 4 * Math.PI/3);
+
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, radius, -Math.PI/2 -2*Math.PI/3, -Math.PI/2);
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.drawImage(gridImageB, -cx, -cy);
+            ctx.restore();
+        }
+
+        // Update the save button handler to include the bottom canvas
+        saveButton.addEventListener('click', async () => {
+            // Hide visual elements
             const hexBorders = hexGrid.querySelectorAll('.hex-border');
             const mapLines = hexGrid.querySelectorAll('.map-lines');
             const flipArrows = hexGrid.querySelectorAll('.flip-arrow');
@@ -664,10 +761,40 @@
             mapLines.forEach(line => line.style.display = 'none');
             flipArrows.forEach(arrow => arrow.style.display = 'none');
 
-            // Use html2canvas with higher scale factor
-            const canvas = await html2canvas(hexGrid, {
+            // Save current state
+            const originalState = {};
+            Object.assign(originalState, mapState);
+
+            // Setup all three canvases
+            const canvasSize = { width: 840 * 2, height: (840 * 2 * 11) / 8.5 };
+            const canvases = ['renderCanvasTopA', 'renderCanvasTopB', 'renderCanvasBottom'].map(id => {
+                const canvas = document.getElementById(id);
+                canvas.width = canvasSize.width;
+                canvas.height = canvasSize.height;
+                canvas.style.width = '840px';
+                canvas.style.height = (840 * 11 / 8.5) + 'px';
+                return canvas;
+            });
+
+            // Set all sections to A and capture
+            ['upperRight', 'upperLeft', 'bottom'].forEach(section => {
+                mapState[section] = 'A';
+            });
+            const rows = document.querySelectorAll('.grid-row');
+            rows.forEach((row, rowIndex) => {
+                const hexes = row.querySelectorAll('.hex:not(.invisible)');
+                hexes.forEach((hex, colIndex) => {
+                    hex.dataset.side = 'A';
+                    const items = hex.querySelectorAll('.rock-image, .crystal-image');
+                    items.forEach(item => {
+                        item.style.display = item.dataset.side === 'A' ? '' : 'none';
+                    });
+                });
+            });
+
+            const gridImageA = await html2canvas(hexGrid, {
                 backgroundColor: null,
-                scale: 2, // Increase scale for better quality
+                scale: 2,
                 logging: false,
                 allowTaint: true,
                 useCORS: true,
@@ -675,61 +802,80 @@
                 width: hexGrid.offsetWidth,
                 height: hexGrid.offsetHeight
             });
-            
+
+            // Set all sections to B and capture
+            ['upperRight', 'upperLeft', 'bottom'].forEach(section => {
+                mapState[section] = 'B';
+            });
+            rows.forEach((row, rowIndex) => {
+                const hexes = row.querySelectorAll('.hex:not(.invisible)');
+                hexes.forEach((hex, colIndex) => {
+                    hex.dataset.side = 'B';
+                    const items = hex.querySelectorAll('.rock-image, .crystal-image');
+                    items.forEach(item => {
+                        item.style.display = item.dataset.side === 'B' ? '' : 'none';
+                    });
+                });
+            });
+
+            const gridImageB = await html2canvas(hexGrid, {
+                backgroundColor: null,
+                scale: 2,
+                logging: false,
+                allowTaint: true,
+                useCORS: true,
+                imageTimeout: 0,
+                width: hexGrid.offsetWidth,
+                height: hexGrid.offsetHeight
+            });
+
+            // Restore original state
+            Object.assign(mapState, originalState);
+            rows.forEach((row, rowIndex) => {
+                const hexes = row.querySelectorAll('.hex:not(.invisible)');
+                hexes.forEach((hex, colIndex) => {
+                    const section = getHexSection(rowIndex, colIndex);
+                    if (section) {
+                        hex.dataset.side = mapState[section];
+                        const items = hex.querySelectorAll('.rock-image, .crystal-image');
+                        items.forEach(item => {
+                            item.style.display = item.dataset.side === mapState[section] ? '' : 'none';
+                        });
+                    }
+                });
+            });
+
+            // Render all views
+            await renderSection(
+                canvases[0].getContext('2d'),
+                canvases[0],
+                gridImageA,
+                [upperLeftSection, upperRightSection],
+                'A'
+            );
+
+            await renderSection(
+                canvases[1].getContext('2d'),
+                canvases[1],
+                gridImageB,
+                [upperLeftSection, upperRightSection],
+                'B'
+            );
+
+            await renderBottomSection(
+                canvases[2].getContext('2d'),
+                canvases[2],
+                gridImageA,
+                gridImageB
+            );
+
             // Restore visibility
             hexBorders.forEach(border => border.style.display = '');
             mapLines.forEach(line => line.style.display = '');
             flipArrows.forEach(arrow => arrow.style.display = '');
 
-            // Set render canvas to higher resolution
-            renderCanvas.width = 840 * 2;  // Double the size
-            renderCanvas.height = renderCanvas.width * 11 / 8.5;
-            
-            // Scale the canvas display size back down with CSS
-            renderCanvas.style.width = '840px';
-            renderCanvas.style.height = (840 * 11 / 8.5) + 'px';
-            
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2 - 53 * 2; // Adjust for scale
-            const radius = Math.min(cx, cy);
-
-            // Clear the canvas first
-            ctx.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
-
-            // Enable image smoothing
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-
-            // Move origin to left side at vertical center
-            ctx.rotate(-30 * Math.PI / 180);
-            ctx.save();
-            ctx.translate(-40, cy + 200); // Adjust for new scale
-            
-            // Create the clipping path before drawing anything
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.arc(0, 0, radius, -Math.PI/2, -Math.PI/2 + 2*Math.PI/3);
-            ctx.closePath();
-            ctx.clip();
-
-            // Draw the image
-            ctx.drawImage(canvas, -cx, -cy);
-            ctx.restore();
-
-            ctx.save();
-            ctx.translate(380, 1.5*cy - 50); // Adjust for new scale
-            ctx.rotate(2 * Math.PI / 6);
-            
-            // Create the clipping path
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.arc(0, 0, radius, -Math.PI/2 + 2*Math.PI/3, -Math.PI/2 + 4*Math.PI/3);
-            ctx.closePath();
-            ctx.clip();
-
-            // Draw the image
-            ctx.drawImage(canvas, -cx, -cy);
-            ctx.restore();
+            // After all rendering is complete, trigger the print dialog
+            window.print();
         });
 
         let currentMode = 'rocks';
