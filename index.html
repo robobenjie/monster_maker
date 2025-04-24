@@ -23,11 +23,10 @@
 <body>
     <div class="container">
         <div class="controls">
-            <button id="saveButton">Save Character</button>
-            <input type="file" id="loadFile" accept=".json" style="display: none;">
-            <button id="loadButton">Load Character</button>
-            <button id="colorButton">Change Background</button>
-            <input type="color" id="colorPicker" style="display: none;">
+            <button id="saveButton" class="save-button">Save Character</button>
+            <select id="monsterSelect" style="display: none;">
+                <option value="">-- Select a Monster --</option>
+            </select>
         </div>
         <div class="character-mat">
             <input type="text" id="characterName" name="characterName" placeholder="Monster Name">
@@ -55,6 +54,15 @@
                 </div>
             </div>
         </div>
+        <div class="bottom-controls">
+            <div class="file-controls">
+                <a href="#" id="downloadLink">Download as file</a>
+                <a href="#" id="uploadLink">Upload from file</a>
+                <input type="file" id="loadFile" accept=".json" style="display: none;">
+            </div>
+            <button id="colorButton">Change Background</button>
+            <input type="color" id="colorPicker" style="display: none;">
+        </div>
     </div>
     <script src="game.js"></script>
     <!-- Modal for delete confirmation -->
@@ -67,8 +75,12 @@
             </div>
         </div>
     </div>
-    <div id="firebaseui-auth-container"></div>
-        
+    
+    <div id="auth-container">
+        <p id="sign-in-prompt" class="sign-in-prompt">Sign in to save your creations</p>
+        <div id="firebaseui-auth-container"></div>
+    </div>
+
     <button id="sign-out" hidden=true>Sign Out</button>
 
     <div id="login-info" hidden=true>

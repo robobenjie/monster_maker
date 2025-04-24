@@ -59,9 +59,32 @@ window.addEventListener('load', function () {
         document.getElementById('login-info').hidden = false;
         document.getElementById('user-name').textContent = user.displayName || user.email;
         
+        // Show and populate monster select
+        const monsterSelect = document.getElementById('monsterSelect');
+        monsterSelect.style.display = 'inline-block';
+        
+        // Fetch user's monsters
+        db.collection(`Apps/monster-maker/Users/${user.uid}/monsters`).get()
+          .then((querySnapshot) => {
+            // Clear existing options except the first default one
+            monsterSelect.innerHTML = '<option value="">-- Select a Monster --</option>';
+            
+            querySnapshot.forEach((doc) => {
+              const option = document.createElement('option');
+              option.value = doc.id;
+              option.textContent = doc.id.replace(/-/g, ' '); // Convert back from sanitized name
+              monsterSelect.appendChild(option);
+            });
+          })
+          .catch((error) => {
+            console.error('Error fetching monsters:', error);
+          });
+
         user.getIdToken().then(function (token) {
           document.cookie = "token=" + token;
         });
+
+        document.getElementById('sign-in-prompt').style.display = 'none';
       } else {
         console.log('Starting FirebaseUI');
         // Start FirebaseUI
@@ -70,7 +93,9 @@ window.addEventListener('load', function () {
         document.getElementById('sign-out').hidden = true;
         document.getElementById('login-info').hidden = true;
         document.getElementById('user-name').textContent = 'Guest';
+        document.getElementById('monsterSelect').style.display = 'none';
         document.cookie = "token=";
+        document.getElementById('sign-in-prompt').style.display = 'block';
       }
     }, function (error) {
       console.error('Auth state change error:', error);
@@ -399,7 +424,8 @@ const character = new Character();
 document.addEventListener('DOMContentLoaded', () => {
     const nameInput = document.getElementById('characterName');
     const saveButton = document.getElementById('saveButton');
-    const loadButton = document.getElementById('loadButton');
+    const downloadLink = document.getElementById('downloadLink');
+    const uploadLink = document.getElementById('uploadLink');
     const loadFile = document.getElementById('loadFile');
     const typeInput = document.getElementById('monsterType');
     const hpInput = document.getElementById('monsterHP');
@@ -431,26 +457,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Modify the save button event listener
+    // Update save button to only do Firebase save
     saveButton.addEventListener('click', async () => {
         const user = firebase.auth().currentUser;
-        const monsterName = sanitizeMonsterName(character.name);
+        if (!user) return;  // Early return if not logged in
         
-        // Save to Firebase if user is logged in
-        if (user) {
-            try {
-                await db.doc(`Apps/monster-maker/Users/${user.uid}/monsters/${monsterName}`)
-                    .set({
-                        json: JSON.stringify(character),
-                        lastModified: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                console.log(`Monster "${character.name}" saved to Firebase successfully`);
-            } catch (error) {
-                console.error('Error saving to Firebase:', error);
-            }
+        const monsterName = sanitizeMonsterName(character.name);
+        try {
+            await db.doc(`Apps/monster-maker/Users/${user.uid}/monsters/${monsterName}`)
+                .set({
+                    json: JSON.stringify(character),
+                    lastModified: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            console.log(`Monster "${character.name}" saved to Firebase successfully`);
+        } catch (error) {
+            console.error('Error saving to Firebase:', error);
         }
+    });
 
-        // Always do local save as fallback
+    // Add download link handler
+    downloadLink.addEventListener('click', (e) => {
+        e.preventDefault();
         const data = JSON.stringify(character, null, 2);
         const blob = new Blob([data], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -463,20 +490,25 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     });
 
-    // Load functionality
-    loadButton.addEventListener('click', () => {
+    // Add upload link handler
+    uploadLink.addEventListener('click', (e) => {
+        e.preventDefault();
         loadFile.click();
     });
 
+    // Add file input change handler
     loadFile.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
-
+                try {
                     const data = JSON.parse(e.target.result);
                     character.loadFromData(data);
-
+                    console.log('Character loaded from file successfully');
+                } catch (error) {
+                    console.error('Error parsing character file:', error);
+                }
             };
             reader.readAsText(file);
         }
@@ -614,6 +646,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Also call it once DOM is loaded
     adjustNameSize();
+
+    // Add monster select change handler in your DOMContentLoaded event listener
+    const monsterSelect = document.getElementById('monsterSelect');
+    monsterSelect.addEventListener('change', (e) => {
+        const selectedMonsterId = e.target.value;
+        if (!selectedMonsterId) return; // Skip if default option selected
+
+        const user = firebase.auth().currentUser;
+        if (!user) return;
+
+        // Fetch the selected monster's data
+        db.doc(`Apps/monster-maker/Users/${user.uid}/monsters/${selectedMonsterId}`)
+            .get()
+            .then((doc) => {
+                if (doc.exists) {
+                    const data = JSON.parse(doc.data().json);
+                    character.loadFromData(data);
+                    console.log(`Loaded monster: ${selectedMonsterId}`);
+                }
+            })
+            .catch((error) => {
+                console.error('Error loading monster:', error);
+            });
+    });
+
+    // Update auth state change handler
+    firebase.auth().onAuthStateChanged(function (user) {
+        if (user) {
+            // ... existing logged in code ...
+            saveButton.setAttribute('data-logged-in', 'true');
+            saveButton.removeAttribute('title');
+        } else {
+            // ... existing logged out code ...
+            saveButton.setAttribute('data-logged-in', 'false');
+            saveButton.setAttribute('title', 'Log in to save');
+        }
+    });
 }); 
 
 // Version 4.1 - pSBC - Shade Blend Convert
