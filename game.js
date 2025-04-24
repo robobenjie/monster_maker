@@ -12,6 +12,9 @@ const firebaseConfig = {
 // Initialize Firebase with compat version
 firebase.initializeApp(firebaseConfig);
 
+// After the Firebase initialization, add:
+const db = firebase.firestore();
+
 window.addEventListener('load', function () {
     // Initialize FirebaseUI
     var ui = new firebaseui.auth.AuthUI(firebase.auth());
@@ -428,8 +431,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Save functionality
-    saveButton.addEventListener('click', () => {
+    // Modify the save button event listener
+    saveButton.addEventListener('click', async () => {
+        const user = firebase.auth().currentUser;
+        const monsterName = sanitizeMonsterName(character.name);
+        
+        // Save to Firebase if user is logged in
+        if (user) {
+            try {
+                await db.doc(`Apps/monster-maker/Users/${user.uid}/monsters/${monsterName}`)
+                    .set({
+                        json: JSON.stringify(character),
+                        lastModified: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                console.log(`Monster "${character.name}" saved to Firebase successfully`);
+            } catch (error) {
+                console.error('Error saving to Firebase:', error);
+            }
+        }
+
+        // Always do local save as fallback
         const data = JSON.stringify(character, null, 2);
         const blob = new Blob([data], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -626,3 +647,11 @@ pSBC.pSBCr=(d)=>{
     }
     return x;
 }; 
+
+// Helper function to sanitize monster name for storage
+function sanitizeMonsterName(name) {
+    if (!name) return 'unnamed-monster';
+    return name.toLowerCase()
+               .replace(/[^a-z0-9]+/g, '-')
+               .replace(/(^-|-$)/g, '');
+} 
