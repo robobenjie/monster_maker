@@ -1,3 +1,82 @@
+// Move the Firebase config and initialization to the top of the file, before any Firebase usage
+const firebaseConfig = {
+    apiKey: "AIzaSyAfN2QZbkURGC8rBb899SAjXeYfkOZolDY",
+    authDomain: "benjie-hobby.firebaseapp.com",
+    projectId: "benjie-hobby",
+    storageBucket: "benjie-hobby.firebasestorage.app",
+    messagingSenderId: "384569254209",
+    appId: "1:384569254209:web:f48f04161344b3cec341c0",
+    measurementId: "G-BZK4TS4FK3"
+};
+
+// Initialize Firebase with compat version
+firebase.initializeApp(firebaseConfig);
+
+window.addEventListener('load', function () {
+    // Initialize FirebaseUI
+    var ui = new firebaseui.auth.AuthUI(firebase.auth());
+    
+    document.getElementById('sign-out').onclick = function () {
+      firebase.auth().signOut();
+    };
+  
+    // FirebaseUI config.
+    var uiConfig = {
+      signInOptions: [
+        firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+        firebase.auth.EmailAuthProvider.PROVIDER_ID,
+      ],
+      callbacks: {
+        signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+          // Log successful sign-in
+          console.log('Sign-in successful:', authResult);
+          return false; // Prevent redirect after sign-in
+        },
+        uiShown: function() {
+          console.log('FirebaseUI shown');
+        }
+      },
+      signInFlow: 'popup', // Use popup instead of redirect
+      tosUrl: 'https://example.com/tos',
+      privacyPolicyUrl: 'https://example.com/privacy'
+    };
+  
+    firebase.auth().onAuthStateChanged(function (user) {
+      console.log('Auth state changed:', user ? 'signed in' : 'signed out');
+      
+      if (user) {
+        // User is signed in
+        console.log('User details:', {
+          uid: user.uid,
+          name: user.displayName,
+          email: user.email
+        });
+        
+        document.getElementById('sign-out').hidden = false;
+        document.getElementById('login-info').hidden = false;
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        
+        user.getIdToken().then(function (token) {
+          document.cookie = "token=" + token;
+        });
+      } else {
+        console.log('Starting FirebaseUI');
+        // Start FirebaseUI
+        ui.start('#firebaseui-auth-container', uiConfig);
+        
+        document.getElementById('sign-out').hidden = true;
+        document.getElementById('login-info').hidden = true;
+        document.getElementById('user-name').textContent = 'Guest';
+        document.cookie = "token=";
+      }
+    }, function (error) {
+      console.error('Auth state change error:', error);
+      alert('Unable to log in: ' + error)
+    });
+});
+  
+
+
 // Add these helper functions at the top level
 function isColorDark(color) {
     const rgb = pSBC.pSBCr(color);

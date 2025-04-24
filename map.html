@@ -294,8 +294,8 @@
 <body>
     <div class="print-section" style="display: none;">
         <canvas id="renderCanvasTopA"></canvas>
-        <canvas id="renderCanvasTopB"></canvas>
         <canvas id="renderCanvasBottom"></canvas>
+        <canvas id="renderCanvasTopB"></canvas>
     </div>
     <div class="container" id="mapEditor">
         <div class="controls">
@@ -315,6 +315,8 @@
     </div>
     <div class="mode-panel">
         <button class="mode-button active" data-mode="rocks">Rocks</button>
+        <button class="mode-button" data-mode="rubble">Rubble</button>
+        <button class="mode-button" data-mode="plants">Plants</button>
         <button class="mode-button" data-mode="pink">Pink Crystal</button>
         <button class="mode-button" data-mode="blue">Blue Crystal</button>
         <button class="mode-button" data-mode="yellow">Yellow Crystal</button>
@@ -323,16 +325,43 @@
         const hexGrid = document.getElementById('hexGrid');
         const saveButton = document.getElementById('saveButton');
 
-        // Add at the top with other constants
-        const ROCK_COUNT = 6;
-        const rockImages = [];
-
-        // Load rock images
-        for (let i = 1; i <= ROCK_COUNT; i++) {
-            const img = new Image();
-            img.src = `map_assets/rock${i}.png`;
-            rockImages.push(img);
-        }
+        // Define terrain types and their properties
+        const TERRAIN_TYPES = {
+            rocks: {
+                count: 6,
+                scale: 0.5,
+                prefix: 'rock',
+                type: 'terrain'
+            },
+            rubble: {
+                count: 6,
+                scale: 0.5,
+                prefix: 'rubble',
+                type: 'terrain'
+            },
+            plants: {
+                count: 9,
+                scale: 0.5,
+                prefix: 'plants',
+                type: 'terrain'
+            },
+            pink: {
+                type: 'crystal',
+                scale: 0.35
+            },
+            blue: {
+                type: 'crystal',
+                scale: 0.35
+            },
+            yellow: {
+                type: 'crystal',
+                scale: 0.35
+            },
+            green: {
+                type: 'crystal',
+                scale: 0.35
+            }
+        };
 
         // Load the background image and get its dimensions
         function loadBackgroundImage() {
@@ -423,39 +452,42 @@
                             return; // Exit if hex is forbidden
                         }
 
-                        // Check for existing items on either side
-                        const existingRock = hex.querySelector('.rock-image');
-                        const existingCrystal = hex.querySelector('.crystal-image');
-                        
-                        if (currentMode === 'rocks') {
-                            // Remove any existing rock on current side
-                            const existingRockOnSide = hex.querySelector(`.rock-image[data-side="${hex.dataset.side}"]`);
-                            if (existingRockOnSide) {
-                                existingRockOnSide.remove();
+                        const terrainConfig = TERRAIN_TYPES[currentMode];
+                        if (terrainConfig.type === 'terrain') {
+                            // Handle terrain placement (rocks, rubble, etc)
+                            const existingTerrainOnSide = hex.querySelector(`.terrain-image[data-side="${hex.dataset.side}"]`);
+                            const existingCrystalOnSide = hex.querySelector(`.crystal-image[data-side="${hex.dataset.side}"]`);
+                            
+                            // Remove any existing terrain on current side
+                            if (existingTerrainOnSide) {
+                                existingTerrainOnSide.remove();
                             }
 
-                            if (!existingRockOnSide && !existingCrystal) {
-                                const randomRock = rockImages[Math.floor(Math.random() * ROCK_COUNT)];
-                                const rockImg = document.createElement('img');
-                                rockImg.src = randomRock.src;
-                                rockImg.className = 'rock-image';
-                                rockImg.dataset.side = hex.dataset.side;
-                                hex.appendChild(rockImg);
+                            if (!existingTerrainOnSide && !existingCrystalOnSide) {  // Only check current side
+                                const images = terrainImages[currentMode];
+                                const randomTerrain = images[Math.floor(Math.random() * images.length)];
+                                const terrainImg = document.createElement('img');
+                                terrainImg.src = randomTerrain.src;
+                                terrainImg.className = 'terrain-image';
+                                terrainImg.dataset.side = hex.dataset.side;
+                                terrainImg.dataset.type = currentMode;
+                                terrainImg.style.transform = `translate(-50%, -50%) scale(${terrainConfig.scale})`;
+                                hex.appendChild(terrainImg);
                             }
-                        } else {
+                        } else if (terrainConfig.type === 'crystal') {
                             // Crystal handling
                             const color = currentMode;
                             
                             // Prevent moving the green crystal
                             if (color === 'green') {
-                                return; // Exit if trying to place green crystal
+                                return;
                             }
 
                             const hexSection = getHexSection(row, col);
                             
                             // Check if this crystal is allowed in this section
                             if (crystalElements[color].section && crystalElements[color].section !== hexSection) {
-                                return; // Crystal must stay in its assigned section
+                                return;
                             }
 
                             // Remove existing crystal of same color from current side
@@ -473,12 +505,7 @@
                             }
 
                             // Add new crystal
-                            const crystalImg = document.createElement('img');
-                            crystalImg.src = `map_assets/${color}.png`;
-                            crystalImg.className = 'crystal-image';
-                            crystalImg.dataset.color = color;
-                            crystalImg.dataset.side = hex.dataset.side;
-                            hex.appendChild(crystalImg);
+                            const crystalImg = addCrystal(hex, color, hex.dataset.side);
 
                             // Update tracking
                             crystalElements[color].section = hexSection;
@@ -504,21 +531,9 @@
                 const hexes = rows[3].querySelectorAll('.hex:not(.invisible)');
                 if (hexes[3]) {
                     // Side A
-                    const crystalImgA = document.createElement('img');
-                    crystalImgA.src = 'map_assets/green.png';
-                    crystalImgA.className = 'crystal-image';
-                    crystalImgA.dataset.color = 'green';
-                    crystalImgA.dataset.side = 'A';
-                    hexes[3].appendChild(crystalImgA);
-
+                    const crystalImgA = addCrystal(hexes[3], 'green', 'A');
                     // Side B
-                    const crystalImgB = document.createElement('img');
-                    crystalImgB.src = 'map_assets/green.png';
-                    crystalImgB.className = 'crystal-image';
-                    crystalImgB.dataset.color = 'green';
-                    crystalImgB.dataset.side = 'B';
-                    crystalImgB.style.display = 'none';
-                    hexes[3].appendChild(crystalImgB);
+                    const crystalImgB = addCrystal(hexes[3], 'green', 'B', false);
                     
                     // Initialize tracking for green crystal
                     crystalElements.green.section = 'upperRight';
@@ -531,24 +546,9 @@
             if (rows[2]) {
                 const hexes = rows[2].querySelectorAll('.hex:not(.invisible)');
                 if (hexes[1]) {
-                    // Side A
-                    const crystalImgA = document.createElement('img');
-                    crystalImgA.src = 'map_assets/pink.png';
-                    crystalImgA.className = 'crystal-image';
-                    crystalImgA.dataset.color = 'pink';
-                    crystalImgA.dataset.side = 'A';
-                    hexes[1].appendChild(crystalImgA);
-
-                    // Side B
-                    const crystalImgB = document.createElement('img');
-                    crystalImgB.src = 'map_assets/pink.png';
-                    crystalImgB.className = 'crystal-image';
-                    crystalImgB.dataset.color = 'pink';
-                    crystalImgB.dataset.side = 'B';
-                    crystalImgB.style.display = 'none';
-                    hexes[1].appendChild(crystalImgB);
+                    const crystalImgA = addCrystal(hexes[1], 'pink', 'A');
+                    const crystalImgB = addCrystal(hexes[1], 'pink', 'B', false);
                     
-                    // Initialize tracking
                     crystalElements.pink.section = 'upperLeft';
                     crystalElements.pink.A = crystalImgA;
                     crystalElements.pink.B = crystalImgB;
@@ -559,25 +559,10 @@
             if (rows[2]) {
                 const hexes = rows[2].querySelectorAll('.hex:not(.invisible)');
                 if (hexes[4]) {
-                    // Side A
-                    const crystalImgA = document.createElement('img');
-                    crystalImgA.src = 'map_assets/blue.png';
-                    crystalImgA.className = 'crystal-image';
-                    crystalImgA.dataset.color = 'blue';
-                    crystalImgA.dataset.side = 'A';
-                    hexes[4].appendChild(crystalImgA);
-
-                    // Side B
-                    const crystalImgB = document.createElement('img');
-                    crystalImgB.src = 'map_assets/blue.png';
-                    crystalImgB.className = 'crystal-image';
-                    crystalImgB.dataset.color = 'blue';
-                    crystalImgB.dataset.side = 'B';
-                    crystalImgB.style.display = 'none';
-                    hexes[4].appendChild(crystalImgB);
+                    const crystalImgA = addCrystal(hexes[4], 'blue', 'A');
+                    const crystalImgB = addCrystal(hexes[4], 'blue', 'B', false);
                     
-                    // Initialize tracking - Fix the section
-                    crystalElements.blue.section = 'upperRight';  // Changed from 'bottom'
+                    crystalElements.blue.section = 'upperRight';
                     crystalElements.blue.A = crystalImgA;
                     crystalElements.blue.B = crystalImgB;
                 }
@@ -587,25 +572,10 @@
             if (rows[5]) {
                 const hexes = rows[5].querySelectorAll('.hex:not(.invisible)');
                 if (hexes[2]) {
-                    // Side A
-                    const crystalImgA = document.createElement('img');
-                    crystalImgA.src = 'map_assets/yellow.png';
-                    crystalImgA.className = 'crystal-image';
-                    crystalImgA.dataset.color = 'yellow';
-                    crystalImgA.dataset.side = 'A';
-                    hexes[2].appendChild(crystalImgA);
-
-                    // Side B
-                    const crystalImgB = document.createElement('img');
-                    crystalImgB.src = 'map_assets/yellow.png';
-                    crystalImgB.className = 'crystal-image';
-                    crystalImgB.dataset.color = 'yellow';
-                    crystalImgB.dataset.side = 'B';
-                    crystalImgB.style.display = 'none';
-                    hexes[2].appendChild(crystalImgB);
+                    const crystalImgA = addCrystal(hexes[2], 'yellow', 'A');
+                    const crystalImgB = addCrystal(hexes[2], 'yellow', 'B', false);
                     
-                    // Initialize tracking - Fix the section
-                    crystalElements.yellow.section = 'bottom';  // Changed from 'upperRight'
+                    crystalElements.yellow.section = 'bottom';
                     crystalElements.yellow.A = crystalImgA;
                     crystalElements.yellow.B = crystalImgB;
                 }
@@ -793,7 +763,7 @@
                 const hexes = row.querySelectorAll('.hex:not(.invisible)');
                 hexes.forEach((hex, colIndex) => {
                     hex.dataset.side = 'A';
-                    const items = hex.querySelectorAll('.rock-image, .crystal-image');
+                    const items = hex.querySelectorAll('.terrain-image, .crystal-image');
                     items.forEach(item => {
                         item.style.display = item.dataset.side === 'A' ? '' : 'none';
                     });
@@ -819,7 +789,7 @@
                 const hexes = row.querySelectorAll('.hex:not(.invisible)');
                 hexes.forEach((hex, colIndex) => {
                     hex.dataset.side = 'B';
-                    const items = hex.querySelectorAll('.rock-image, .crystal-image');
+                    const items = hex.querySelectorAll('.terrain-image, .crystal-image');
                     items.forEach(item => {
                         item.style.display = item.dataset.side === 'B' ? '' : 'none';
                     });
@@ -845,7 +815,7 @@
                     const section = getHexSection(rowIndex, colIndex);
                     if (section) {
                         hex.dataset.side = mapState[section];
-                        const items = hex.querySelectorAll('.rock-image, .crystal-image');
+                        const items = hex.querySelectorAll('.terrain-image, .crystal-image');
                         items.forEach(item => {
                             item.style.display = item.dataset.side === mapState[section] ? '' : 'none';
                         });
@@ -903,19 +873,25 @@
             });
         });
 
-        // Update the crystal style
-        const crystalStyle = document.createElement('style');
-        crystalStyle.textContent = `
+        // Update the style to remove the transform property (it's now set inline)
+        const terrainStyle = document.createElement('style');
+        terrainStyle.textContent = `
+            .terrain-image {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                pointer-events: none;
+                z-index: 3;
+            }
             .crystal-image {
                 position: absolute;
                 top: 50%;
                 left: 50%;
-                transform: translate(-50%, -50%) scale(0.35);
                 pointer-events: none;
                 z-index: 3;
             }
         `;
-        document.head.appendChild(crystalStyle);
+        document.head.appendChild(terrainStyle);
 
         // Define the sections of the map
         const upperRightSection = [
@@ -963,7 +939,7 @@
                         hex.dataset.side = mapState[sectionKey];
                         
                         // Hide/show rocks and crystals based on their side
-                        const items = hex.querySelectorAll('.rock-image, .crystal-image');
+                        const items = hex.querySelectorAll('.terrain-image, .crystal-image');
                         items.forEach(item => {
                             if (item.dataset.side === mapState[sectionKey]) {
                                 item.style.display = ''; // Show
@@ -996,6 +972,35 @@
             if (isHexInSection(row, col, upperLeftSection)) return 'upperLeft';
             if (isHexInSection(row, col, bottomSection)) return 'bottom';
             return null;
+        }
+
+        // Load terrain images
+        const terrainImages = {};
+        Object.entries(TERRAIN_TYPES).forEach(([key, config]) => {
+            if (config.type === 'terrain') {
+                terrainImages[key] = [];
+                for (let i = 1; i <= config.count; i++) {
+                    const img = new Image();
+                    img.src = `map_assets/${config.prefix}${i}.png`;
+                    terrainImages[key].push(img);
+                }
+            }
+        });
+
+        // Add this function before the click handler
+        function addCrystal(hex, color, side, shouldDisplay = true) {
+            const terrainConfig = TERRAIN_TYPES[color];
+            const crystalImg = document.createElement('img');
+            crystalImg.src = `map_assets/${color}.png`;
+            crystalImg.className = 'crystal-image';
+            crystalImg.dataset.color = color;
+            crystalImg.dataset.side = side;
+            crystalImg.style.transform = `translate(-50%, -50%) scale(${terrainConfig.scale})`;
+            if (!shouldDisplay) {
+                crystalImg.style.display = 'none';
+            }
+            hex.appendChild(crystalImg);
+            return crystalImg;
         }
     </script>
 </body>
