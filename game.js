@@ -1,4 +1,4 @@
-// Move the Firebase config and initialization to the top of the file, before any Firebase usage
+// Firebase config at the top
 const firebaseConfig = {
     apiKey: "AIzaSyAfN2QZbkURGC8rBb899SAjXeYfkOZolDY",
     authDomain: "benjie-hobby.firebaseapp.com",
@@ -9,101 +9,72 @@ const firebaseConfig = {
     measurementId: "G-BZK4TS4FK3"
 };
 
-// Initialize Firebase with compat version
-firebase.initializeApp(firebaseConfig);
-
-// After the Firebase initialization, add:
-const db = firebase.firestore();
+// Initialize Firebase service
+firebaseService.init(firebaseConfig);
 
 window.addEventListener('load', function () {
-    // Initialize FirebaseUI
-    var ui = new firebaseui.auth.AuthUI(firebase.auth());
+    // Set up sign out button
+    document.getElementById('sign-out').onclick = () => firebaseService.logout();
     
-    document.getElementById('sign-out').onclick = function () {
-      firebase.auth().signOut();
-    };
-  
-    // FirebaseUI config.
-    var uiConfig = {
-      signInOptions: [
-        firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-        firebase.auth.EmailAuthProvider.PROVIDER_ID,
-      ],
-      callbacks: {
-        signInSuccessWithAuthResult: function(authResult, redirectUrl) {
-          // Log successful sign-in
-          console.log('Sign-in successful:', authResult);
-          return false; // Prevent redirect after sign-in
-        },
-        uiShown: function() {
-          console.log('FirebaseUI shown');
-        }
-      },
-      signInFlow: 'popup', // Use popup instead of redirect
-      tosUrl: 'https://example.com/tos',
-      privacyPolicyUrl: 'https://example.com/privacy'
-    };
-  
-    firebase.auth().onAuthStateChanged(function (user) {
-      console.log('Auth state changed:', user ? 'signed in' : 'signed out');
-      
-      if (user) {
-        // User is signed in
-        console.log('User details:', {
-          uid: user.uid,
-          name: user.displayName,
-          email: user.email
-        });
+    // Set up auth state change listener
+    firebaseService.onAuthStateChanged(async function (user) {
+        console.log('Auth state changed:', user ? 'signed in' : 'signed out');
         
-        document.getElementById('sign-out').hidden = false;
-        document.getElementById('login-info').hidden = false;
-        document.getElementById('user-name').textContent = user.displayName || user.email;
-        
-        // Show and populate monster select
-        const monsterSelect = document.getElementById('monsterSelect');
-        monsterSelect.style.display = 'inline-block';
-        
-        // Fetch user's monsters
-        db.collection(`Apps/monster-maker/Users/${user.uid}/monsters`).get()
-          .then((querySnapshot) => {
-            // Clear existing options except the first default one
-            monsterSelect.innerHTML = '<option value="">-- Select a Monster --</option>';
-            
-            querySnapshot.forEach((doc) => {
-              const option = document.createElement('option');
-              option.value = doc.id;
-              option.textContent = doc.id.replace(/-/g, ' '); // Convert back from sanitized name
-              monsterSelect.appendChild(option);
+        if (user) {
+            // User is signed in
+            console.log('User details:', {
+                uid: user.uid,
+                name: user.displayName,
+                email: user.email
             });
-          })
-          .catch((error) => {
-            console.error('Error fetching monsters:', error);
-          });
+            
+            document.getElementById('sign-out').hidden = false;
+            document.getElementById('login-info').hidden = false;
+            document.getElementById('user-name').textContent = user.displayName || user.email;
+            document.getElementById('sign-in-prompt').style.display = 'none';
+            
+            // Show and populate monster select
+            const monsterSelect = document.getElementById('monsterSelect');
+            monsterSelect.style.display = 'inline-block';
+            
+            try {
+                // Fetch user's monsters
+                const monsters = await firebaseService.listData(`Apps/monster-maker/Users/${user.uid}/monsters`);
+                
+                // Clear existing options except the first default one
+                monsterSelect.innerHTML = '<option value="">-- Select a Monster --</option>';
+                
+                monsters.forEach((monster) => {
+                    const option = document.createElement('option');
+                    option.value = monster.id;
+                    option.textContent = monster.id.replace(/-/g, ' '); // Convert back from sanitized name
+                    monsterSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching monsters:', error);
+            }
 
-        user.getIdToken().then(function (token) {
-          document.cookie = "token=" + token;
-        });
-
-        document.getElementById('sign-in-prompt').style.display = 'none';
-      } else {
-        console.log('Starting FirebaseUI');
-        // Start FirebaseUI
-        ui.start('#firebaseui-auth-container', uiConfig);
-        
-        document.getElementById('sign-out').hidden = true;
-        document.getElementById('login-info').hidden = true;
-        document.getElementById('user-name').textContent = 'Guest';
-        document.getElementById('monsterSelect').style.display = 'none';
-        document.cookie = "token=";
-        document.getElementById('sign-in-prompt').style.display = 'block';
-      }
-    }, function (error) {
-      console.error('Auth state change error:', error);
-      alert('Unable to log in: ' + error)
+            // Update save button state
+            const saveButton = document.getElementById('saveButton');
+            saveButton.setAttribute('data-logged-in', 'true');
+            saveButton.removeAttribute('title');
+        } else {
+            // User is signed out
+            firebaseService.initUI('#firebaseui-auth-container');
+            
+            document.getElementById('sign-out').hidden = true;
+            document.getElementById('login-info').hidden = true;
+            document.getElementById('user-name').textContent = 'Guest';
+            document.getElementById('monsterSelect').style.display = 'none';
+            document.getElementById('sign-in-prompt').style.display = 'block';
+            
+            // Update save button state
+            const saveButton = document.getElementById('saveButton');
+            saveButton.setAttribute('data-logged-in', 'false');
+            saveButton.setAttribute('title', 'Log in to save');
+        }
     });
 });
-  
-
 
 // Add these helper functions at the top level
 function isColorDark(color) {
@@ -457,18 +428,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Update save button to only do Firebase save
+    // Update save button to use Firebase service
     saveButton.addEventListener('click', async () => {
-        const user = firebase.auth().currentUser;
+        const user = firebaseService.getCurrentUser();
         if (!user) return;  // Early return if not logged in
         
         const monsterName = sanitizeMonsterName(character.name);
         try {
-            await db.doc(`Apps/monster-maker/Users/${user.uid}/monsters/${monsterName}`)
-                .set({
-                    json: JSON.stringify(character),
-                    lastModified: firebase.firestore.FieldValue.serverTimestamp()
-                });
+            await firebaseService.saveData(
+                `Apps/monster-maker/Users/${user.uid}/monsters/${monsterName}`,
+                character
+            );
             console.log(`Monster "${character.name}" saved to Firebase successfully`);
         } catch (error) {
             console.error('Error saving to Firebase:', error);
@@ -647,43 +617,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Also call it once DOM is loaded
     adjustNameSize();
 
-    // Add monster select change handler in your DOMContentLoaded event listener
+    // Update monster select change handler
     const monsterSelect = document.getElementById('monsterSelect');
-    monsterSelect.addEventListener('change', (e) => {
+    monsterSelect.addEventListener('change', async (e) => {
         const selectedMonsterId = e.target.value;
-        if (!selectedMonsterId) return; // Skip if default option selected
+        if (!selectedMonsterId) return;
 
-        const user = firebase.auth().currentUser;
+        const user = firebaseService.getCurrentUser();
         if (!user) return;
 
-        // Fetch the selected monster's data
-        db.doc(`Apps/monster-maker/Users/${user.uid}/monsters/${selectedMonsterId}`)
-            .get()
-            .then((doc) => {
-                if (doc.exists) {
-                    const data = JSON.parse(doc.data().json);
-                    character.loadFromData(data);
-                    console.log(`Loaded monster: ${selectedMonsterId}`);
-                }
-            })
-            .catch((error) => {
-                console.error('Error loading monster:', error);
-            });
-    });
-
-    // Update auth state change handler
-    firebase.auth().onAuthStateChanged(function (user) {
-        if (user) {
-            // ... existing logged in code ...
-            saveButton.setAttribute('data-logged-in', 'true');
-            saveButton.removeAttribute('title');
-        } else {
-            // ... existing logged out code ...
-            saveButton.setAttribute('data-logged-in', 'false');
-            saveButton.setAttribute('title', 'Log in to save');
+        try {
+            const data = await firebaseService.getData(
+                `Apps/monster-maker/Users/${user.uid}/monsters/${selectedMonsterId}`
+            );
+            if (data) {
+                character.loadFromData(data);
+                console.log(`Loaded monster: ${selectedMonsterId}`);
+            }
+        } catch (error) {
+            console.error('Error loading monster:', error);
         }
     });
-}); 
+});
 
 // Version 4.1 - pSBC - Shade Blend Convert
 const pSBC = (p,c0,c1,l) => {
