@@ -425,6 +425,29 @@ button:hover {
     .image-container img:not([src$="CYII="]) {
         background: transparent !important;
     }
+
+    /* Hide additional UI elements */
+    .bottom-controls,
+    .file-controls,
+    .auth-wrapper,
+    #auth-container,
+    #sign-out,
+    #login-info,
+    #firebaseui-auth-container,
+    #sign-in-prompt {
+        display: none !important;
+    }
+
+    /* Remove margins and padding in print view */
+    .container {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Center the character mat in print view */
+    .character-mat {
+        margin: 0 auto !important;
+    }
 } 
 
 .attack-grid {
